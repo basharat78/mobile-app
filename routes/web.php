@@ -18,11 +18,7 @@ Route::middleware('auth')->group(function () {
             return view('dashboard');
         })->name('dashboard');
 
-        // Volt::route('/document-upload', 'auth.document-upload')->name('document-upload');
-        // Volt::route('/preferences', 'auth.carrier-preferences')->name('preferences');
-        // Volt::route('/my-requests', 'carrier.my-requests')->name('my-requests');
-        // Volt::route('/notifications', 'carrier.notifications')->name('notifications');
-        // Volt::route('/loads', 'loads')->name('loads');
+     
     });
 
     // Shared Auth Routes
@@ -35,14 +31,10 @@ Route::middleware('auth')->group(function () {
         return redirect('/');
     })->name('logout');
 
-    // Auth Recovery
-    // Volt::route('/forgot-password', 'auth.forgot-password')->name('password.request');
-    // Volt::route('/reset-password/{token}', 'auth.reset-password')->name('password.reset');
-
+  
     // Dispatcher Routes
     Route::middleware('role:dispatcher')->prefix('dispatcher')->name('dispatcher.')->group(function () {
         Volt::route('/dashboard', 'dispatcher.dashboard')->name('dashboard');
-        // Volt::route('/carriers', 'dispatcher.carriers')->name('carriers');
-        // Volt::route('/loads', 'dispatcher.loads')->name('loads');
+
     });
 });

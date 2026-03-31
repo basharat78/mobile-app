@@ -22,7 +22,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Shared Auth Routes
-    // Volt::route('/profile', 'auth.profile')->name('profile');
+     Volt::route('/profile', 'auth.profile')->name('profile');
 
     Route::post('/logout', function () {
         Auth::logout();

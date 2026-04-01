@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
     // Dispatcher Routes
     Route::middleware('role:dispatcher')->prefix('dispatcher')->name('dispatcher.')->group(function () {
         Volt::route('/dashboard', 'dispatcher.dashboard')->name('dashboard');
+        Volt::route('/loads', 'dispatcher.loads')->name('loads');
 
     });
 });

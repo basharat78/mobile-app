@@ -99,13 +99,13 @@ new #[Layout('components.layouts.app')] class extends Component
                     @error('phone') <span class="text-[9px] text-red-500 font-black uppercase tracking-widest mt-1 ml-4">{{ $message }}</span> @enderror
 
                     <div>
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-2">Security Key</label>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-2">Password</label>
                         <input wire:model="password" type="password" class="block w-full px-6 py-4 text-white bg-slate-900 border border-white/5 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm" placeholder="••••••••">
                         @error('password') <span class="text-[9px] text-red-500 font-black uppercase tracking-widest mt-1 ml-4">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
-                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-2">Confirm Key</label>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-2">Confirm Password</label>
                         <input wire:model="password_confirmation" type="password" class="block w-full px-6 py-4 text-white bg-slate-900 border border-white/5 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-sm" placeholder="••••••••">
                     </div>
                 </div>
@@ -126,7 +126,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
                 <div class="pt-4">
                     <button type="submit" class="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-blue-500/40 hover:bg-blue-500 active:scale-[0.98] transition-all">
-                        Establish Account
+                        Create Account
                     </button>
                 </div>
             </form>
@@ -134,7 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="text-center relative z-10">
                 <p class="text-[10px] text-slate-600 font-black uppercase tracking-widest">
                     Existing user? 
-                    <a href="/login" class="text-blue-500 hover:text-blue-400">Authenticate</a>
+                    <a href="/login" class="text-blue-500 hover:text-blue-400">Sign In</a>
                 </p>
             </div>
         </div>

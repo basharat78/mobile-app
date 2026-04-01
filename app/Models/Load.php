@@ -21,4 +21,8 @@ class Load extends Model
     {
         return $this->belongsTo(User::class, 'dispatcher_id');
     }
+    // public function requests()
+    // {
+    //     return $this->hasMany(Load::class);
+    // }
 }

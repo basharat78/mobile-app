@@ -12,6 +12,10 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password', 'phone', 'role', 'company_name'])]
 #[Hidden(['password', 'remember_token'])]
+
+//attribute in. laravel 13
+// In Laravel 13, the `#[Fillable]` and `#[Hidden]` attributes are used to define which attributes of a model can be mass-assigned and which should be hidden when the model is serialized, respectively.
+
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -29,4 +33,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    public function loads()
+    {
+        return $this->hasMany(Load::class, 'dispatcher_id');
+    }
+    
 }

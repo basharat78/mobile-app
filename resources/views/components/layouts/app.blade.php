@@ -90,7 +90,7 @@
                 @php
                     $isDashboard = request()->is('dashboard') || request()->is('dispatcher/dashboard');
                     $isCarrier = Auth::user()->role === 'carrier';
-                    $unreadCount = $isCarrier ? \App\Models\Notification::where('user_id', Auth::id())->whereNull('read_at')->count() : 0;
+                    // $unreadCount = $isCarrier ? \App\Models\Notification::where('user_id', Auth::id())->whereNull('read_at')->count() : 0;
                 @endphp
 
                 <!-- Mobile Top Header (Always for Carrier, conditionally for Dispatcher) -->
@@ -107,9 +107,9 @@
                     </div>
 
                     <div class="flex items-center gap-3">
-                        @if($isCarrier)
+                        {{-- @if($isCarrier)
                             <livewire:layout.notification-count />
-                        @endif
+                        @endif --}}
                     </div>
                 </header>
 

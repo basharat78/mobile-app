@@ -12,10 +12,6 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password', 'phone', 'role', 'company_name'])]
 #[Hidden(['password', 'remember_token'])]
-
-//attribute in. laravel 13
-// In Laravel 13, the `#[Fillable]` and `#[Hidden]` attributes are used to define which attributes of a model can be mass-assigned and which should be hidden when the model is serialized, respectively.
-
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -33,9 +29,39 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function carrier()
+    {
+        return $this->hasOne(Carrier::class);
+    }
+
+    public function managedCarriers()
+    {
+        return $this->hasMany(Carrier::class, 'dispatcher_id');
+    }
+
     public function loads()
     {
         return $this->hasMany(Load::class, 'dispatcher_id');
     }
-    
+
+    public function isCarrier()
+    {
+        return $this->role === 'carrier';
+    }
+
+    public function isApproved()
+    {
+        if (!$this->isCarrier()) return true;
+        return $this->carrier && $this->carrier->status === 'approved';
+    }
+
+    public function onboarded()
+    {
+        if (!$this->isCarrier()) return true;
+        $carrier = $this->carrier;
+        if (!$carrier) return false;
+
+        return $carrier->hasMinimumDocuments() && $carrier->hasPreferences();
+    }
 }

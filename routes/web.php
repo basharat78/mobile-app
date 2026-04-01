@@ -19,7 +19,10 @@ Route::middleware('auth')->group(function () {
         })->name('dashboard');
 
         Volt::route('/document-upload', 'auth.document-upload')->name('document-upload');
-        Volt::route('/preferences', 'auth.carrier-preferences')->name('preferences');                
+        Volt::route('/preferences', 'auth.carrier-preferences')->name('preferences');
+        Volt::route('/my-requests', 'carrier.my-requests')->name('my-requests');
+
+        Volt::route('/loads', 'loads')->name('loads');
 
      
     });
@@ -38,7 +41,7 @@ Route::middleware('auth')->group(function () {
     // Dispatcher Routes
     Route::middleware('role:dispatcher')->prefix('dispatcher')->name('dispatcher.')->group(function () {
         Volt::route('/dashboard', 'dispatcher.dashboard')->name('dashboard');
-        
+        Volt::route('/carriers', 'dispatcher.carriers')->name('carriers');
         Volt::route('/loads', 'dispatcher.loads')->name('loads');
 
     });

@@ -99,11 +99,17 @@ new #[Layout('components.layouts.app')] class extends Component
     public $notes = '';
     public $editingLoadId = null;
 
-    public function getLoadsProperty()
+    // public function getLoadsProperty()
+    // {
+    //     return Load::all();
+    // }
+ public function getLoadsProperty()
     {
-        return Load::all();
+        return Load::with('requests.carrier.user')
+            ->where('dispatcher_id', Auth::id())
+            ->latest()
+            ->get();
     }
-
     public function saveLoad()
     {
         $this->validate([
@@ -279,7 +285,7 @@ new #[Layout('components.layouts.app')] class extends Component
                         </div>
 
                         <!-- Requests Section -->
-                        {{-- @if($load->requests->count() > 0)
+                        @if($load->requests->count() > 0)
                             <div class="mt-4 pt-4 border-t border-white/5 space-y-3">
                                 <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Bids / Requests ({{ $load->requests->count() }})</p>
                                 @foreach($load->requests as $request)
@@ -304,7 +310,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                     </div>
                                 @endforeach
                             </div>
-                        @endif --}}
+                        @endif
                     </div>
                 @endforeach
             </div>

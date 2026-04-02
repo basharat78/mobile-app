@@ -98,11 +98,6 @@ new #[Layout('components.layouts.app')] class extends Component
     public $equipment_type = 'Dry Van';
     public $notes = '';
     public $editingLoadId = null;
-
-    // public function getLoadsProperty()
-    // {
-    //     return Load::all();
-    // }
  public function getLoadsProperty()
     {
         return Load::with('requests.carrier.user')
@@ -265,6 +260,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <div>
                                     <h4 class="text-white font-bold text-lg">{{ $load->pickup_location }} → {{ $load->drop_location }}</h4>
                                     <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest">{{ $load->miles }} Miles • {{ $load->equipment_type }}</p>
+                                    <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest">posted: {{ $load->created_at->diffForHumans() }}</p>
                                 </div>
                             </div>
                             <div class="text-right">

@@ -104,8 +104,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="p-6 bg-slate-800/50 border border-white/5 rounded-[2rem] shadow-xl relative overflow-hidden group hover:border-purple-500/30 transition-all">
             <div class="relative z-10">
-                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Revenue</p>
-                <h3 class="text-4xl font-black text-white italic tracking-tighter">${{ number_format($this->stats['total_revenue'] / 1000, 1) }}k</h3>
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Booked</p>
+                <h3 class="text-4xl font-black text-white italic tracking-tighter">{{ number_format($this->stats['total_revenue'] / 1000, 1) }}</h3>
             </div>
             <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-purple-600/5 rounded-full blur-2xl group-hover:bg-purple-600/10 transition-colors"></div>
         </div>
@@ -119,7 +119,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="flex gap-2">
                     <a href="/dispatcher/carriers" class="text-blue-500 text-[10px] font-black uppercase tracking-widest">Carriers</a>
                     <span class="text-slate-700">•</span>
-                    <a href="/dispatcher/loads" class="text-blue-500 text-[10px] font-black uppercase tracking-widest">Bids</a>
+                    <a href="/dispatcher/loads" class="text-blue-500 text-[10px] font-black uppercase tracking-widest">Requests</a>
                 </div>
             </div>
             

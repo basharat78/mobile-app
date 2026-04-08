@@ -25,18 +25,28 @@
             .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         </style>
     </head>
-    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden" x-data="{ splash: true }" x-init="setTimeout(() => splash = false, 2000)">
+    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: true }" x-init="setTimeout(() => splash = false, 2000)">
+        <!-- Global Background Decorative Elements (Carrier only) -->
+        @auth @if(Auth::user()->role === 'carrier')
+            <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+                <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse"></div>
+                <div class="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full animate-pulse" style="animation-delay: 2s"></div>
+                <div class="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-blue-500/5 blur-[150px] rounded-full animate-pulse" style="animation-delay: 4s"></div>
+            </div>
+        @endif @endauth
+
         <!-- Splash Screen Overlay -->
-        <div x-show="splash" x-transition:leave="transition ease-in duration-500" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center">
-            <div class="relative">
-                <div class="w-24 h-24 bg-blue-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-500/40 animate-bounce">
+        <div x-show="splash" x-transition:leave="transition ease-in duration-700" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-110" class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-slate-900/50"></div>
+            <div class="relative z-10 scale-125">
+                <div class="w-24 h-24 bg-blue-gradient rounded-[2rem] flex items-center justify-center shadow-[0_0_50px_rgba(37,99,235,0.4)] animate-float">
                     <span class="text-4xl font-black text-white italic tracking-tighter">TZ</span>
                 </div>
-                <div class="absolute -inset-4 bg-blue-500/20 blur-3xl rounded-full animate-pulse"></div>
+                <div class="absolute -inset-8 bg-blue-500/20 blur-3xl rounded-full animate-pulse"></div>
             </div>
-            <h1 class="mt-8 text-3xl font-black text-white italic tracking-tighter" style="animation: fadeIn 1s forwards 0.5s opacity: 0;">Truck Zap</h1>
-            <div class="mt-4 w-48 h-1 bg-white/5 rounded-full overflow-hidden">
-                <div class="h-full bg-blue-500 animate-progress"></div>
+            <h1 class="mt-12 text-4xl font-black text-white italic tracking-tighter uppercase relative z-10" style="animation: fadeIn 1s forwards 0.5s; opacity: 0;">Truck Zap</h1>
+            <div class="mt-6 w-48 h-1 bg-white/5 rounded-full overflow-hidden relative z-10">
+                <div class="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-progress"></div>
             </div>
         </div>
 
@@ -93,8 +103,35 @@
                     // $unreadCount = $isCarrier ? \App\Models\Notification::where('user_id', Auth::id())->whereNull('read_at')->count() : 0;
                 @endphp
 
-                <!-- Mobile Top Header (Always for Carrier, conditionally for Dispatcher) -->
-                <header class="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-4 flex items-center justify-between {{ Auth::user()->role === 'dispatcher' ? 'md:hidden' : '' }}">
+                <!-- Mobile Top Header (Carrier Redesign) -->
+                @if($isCarrier)
+                <header class="fixed top-4 left-4 right-4 z-50 glass-morphism rounded-2xl px-5 py-3.5 flex items-center justify-between border border-white/10 glow-blue">
+                    <div class="flex items-center gap-4">
+                        @if(!$isDashboard)
+                            <button onclick="history.back()" class="p-2 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all active:scale-90 overflow-hidden relative group">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                                </svg>
+                                <div class="absolute inset-0 bg-blue-600/20 translate-y-full group-active:translate-y-0 transition-transform"></div>
+                            </button>
+                        @endif
+                        <div class="flex flex-col">
+                            <h2 class="text-xs font-black italic text-white uppercase tracking-tighter leading-none">Truck Zap</h2>
+                            <span class="text-[8px] font-bold text-blue-400 uppercase tracking-widest mt-0.5">Carrier Hub</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-blue-gradient p-[1px] shadow-lg shadow-blue-500/20">
+                        <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black italic text-white uppercase">
+                            {{ substr(trim(Auth::user()->name ?? 'U'), 0, 1) }}
+                        </div>
+                    </div>
+                    </div>
+                </header>
+                @else
+                <!-- Original Mobile Top Header (Dispatcher) -->
+                <header class="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-4 flex items-center justify-between md:hidden">
                     <div class="flex items-center gap-4">
                         @if(!$isDashboard)
                             <button onclick="history.back()" class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
@@ -105,13 +142,8 @@
                         @endif
                         <h2 class="text-sm font-black italic text-white uppercase tracking-tighter">Truck Zap</h2>
                     </div>
-
-                    <div class="flex items-center gap-3">
-                        {{-- @if($isCarrier)
-                            <livewire:layout.notification-count />
-                        @endif --}}
-                    </div>
                 </header>
+                @endif
 
                 @if(Auth::user()->role === 'dispatcher')
                     <!-- Sidebar (Desktop Dispatcher) -->
@@ -153,8 +185,8 @@
 
                         <div class="pt-6 border-t border-white/5 space-y-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center font-bold text-slate-300">
-                                    {{ substr(Auth::user()->name, 0, 1) }}
+                                <div class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center font-bold text-slate-300 uppercase">
+                                    {{ substr(trim(Auth::user()->name ?? 'U'), 0, 1) }}
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-bold text-white truncate">{{ Auth::user()->name }}</p>
@@ -180,45 +212,64 @@
             </main>
 
             @auth
-                <!-- Bottom Navigation (Mobile/Universal) -->
-                <nav class="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 px-6 py-3 {{ Auth::user()->role === 'dispatcher' ? 'md:hidden' : '' }}">
-                    <div class="max-w-md mx-auto flex items-center justify-between">
-                        @if(Auth::user()->role === 'carrier')
-                            <a href="/dashboard" class="flex flex-col items-center gap-1 {{ request()->is('dashboard') ? 'text-blue-500' : 'text-slate-400 hover:text-white transition-colors' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                                </svg>
-                                <span class="text-[10px] font-black uppercase tracking-tighter">Home</span>
-                            </a>
-                            <a href="/loads" class="flex flex-col items-center gap-1 {{ request()->is('loads*') ? 'text-blue-500' : 'text-slate-400 hover:text-white transition-colors' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                                </svg>
-                                <span class="text-[10px] font-black uppercase tracking-tighter">Find</span>
-                            </a>
-                            <a href="/document-upload" class="flex flex-col items-center gap-1 {{ request()->is('document-upload') ? 'text-blue-500' : 'text-slate-400 hover:text-white transition-colors' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
-                                </svg>
-                                <span class="text-[10px] font-black uppercase tracking-tighter">Docs</span>
-                            </a>
-                             <a href="/profile" class="flex flex-col items-center gap-1 {{ request()->is('profile') ? 'text-blue-500' : 'text-slate-400 hover:text-white transition-colors' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                                </svg>
-                                <span class="text-[10px] font-black uppercase tracking-tighter">Profile</span>
-                            </a>
-                        @else
-                            <!-- Dispatcher Mobile Nav (Backup) -->
-                            <a href="/dispatcher/dashboard" class="flex flex-col items-center gap-1 {{ request()->is('dispatcher/dashboard') ? 'text-blue-500' : 'text-slate-400' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                                </svg>
-                                <span class="text-[10px] font-black uppercase tracking-tighter">Home</span>
-                            </a>
-                        @endif
+                <!-- Bottom Navigation (Carrier Redesign) -->
+                @if($isCarrier)
+                <nav class="fixed bottom-6 left-6 right-6 z-50">
+                    <div class="max-w-md mx-auto glass-morphism rounded-[2rem] px-2 py-2 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between">
+                        <a href="/dashboard" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('dashboard') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
+                            @if(request()->is('dashboard'))
+                                <div class="absolute inset-0 bg-blue-gradient rounded-2xl opacity-100 scale-100 transition-all duration-300 shadow-lg shadow-blue-500/40"></div>
+                            @endif
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10 transition-transform duration-300 group-active:scale-90">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                            </svg>
+                            <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Home</span>
+                        </a>
+                        
+                        <a href="/loads" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('loads*') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
+                            @if(request()->is('loads*'))
+                                <div class="absolute inset-0 bg-blue-gradient rounded-2xl opacity-100 scale-100 transition-all duration-300 shadow-lg shadow-blue-500/40"></div>
+                            @endif
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10 transition-transform duration-300 group-active:scale-90">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                            </svg>
+                            <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Find</span>
+                        </a>
+
+                        <a href="/document-upload" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('document-upload') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
+                            @if(request()->is('document-upload'))
+                                <div class="absolute inset-0 bg-blue-gradient rounded-2xl opacity-100 scale-100 transition-all duration-300 shadow-lg shadow-blue-500/40"></div>
+                            @endif
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10 transition-transform duration-300 group-active:scale-90">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                            </svg>
+                            <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Docs</span>
+                        </a>
+
+                        <a href="/profile" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('profile') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
+                            @if(request()->is('profile'))
+                                <div class="absolute inset-0 bg-blue-gradient rounded-2xl opacity-100 scale-100 transition-all duration-300 shadow-lg shadow-blue-500/40"></div>
+                            @endif
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10 transition-transform duration-300 group-active:scale-90">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                            </svg>
+                            <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Profile</span>
+                        </a>
                     </div>
                 </nav>
+                @else
+                <!-- Original Bottom Navigation (Dispatcher) -->
+                <nav class="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-t border-white/10 px-6 py-3 md:hidden">
+                    <div class="max-w-md mx-auto flex items-center justify-between">
+                        <a href="/dispatcher/dashboard" class="flex flex-col items-center gap-1 {{ request()->is('dispatcher/dashboard') ? 'text-blue-500' : 'text-slate-400' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                            </svg>
+                            <span class="text-[10px] font-black uppercase tracking-tighter">Home</span>
+                        </a>
+                    </div>
+                </nav>
+                @endif
             @endauth
         </div>
         @livewireScripts

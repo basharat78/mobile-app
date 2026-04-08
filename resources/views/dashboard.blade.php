@@ -14,7 +14,11 @@
         $hasPreferences = $carrier->hasPreferences();
         $isApproved = $carrier->status === 'approved';
 
-        $initials = collect(explode(' ', $user->name))->map(fn($n) => substr($n, 0, 1))->join('');
+        $initials = collect(explode(' ', $user->name ?? ''))
+            ->filter()
+            ->map(fn($n) => substr($n, 0, 1))
+            ->take(2)
+            ->join('') ?: 'U';
         
         // Stats for approved users
         $activeLoadsCount = $isApproved ? $carrier->loadRequests()->where('status', 'approved')->count() : 0;
@@ -45,52 +49,55 @@
         }
     @endphp
 
-    <div class="px-6 py-8 space-y-8">
+    <div class="px-6 py-12 space-y-10 relative z-10">
         @if(!$isApproved)
             <!-- Onboarding / Pending Approval State -->
-            <div class="space-y-8 animate-fade-in">
+            <div class="space-y-10 animate-fade-in">
                 <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Onboarding</h1>
-                        <p class="text-slate-500 font-medium">Complete these steps to start hauling</p>
+                    <div class="space-y-1">
+                        <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow">Onboarding</h1>
+                        <p class="text-slate-400 font-medium text-sm">Complete these steps to start hauling</p>
                     </div>
-                    <div class="px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl">
-                        <span class="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Action Required</span>
+                    <div class="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                        <span class="text-[9px] font-black text-yellow-500 uppercase tracking-widest">Action Required</span>
                     </div>
                 </div>
 
-                <div class="grid gap-4">
+                <div class="grid gap-5">
                     <!-- Step 1: Documents -->
-                    <div class="p-6 bg-slate-800/40 border {{ !$hasDocs ? 'border-blue-500/50' : 'border-white/5' }} rounded-[2rem] relative overflow-hidden group">
+                    <div class="p-8 glass-morphism border {{ !$hasDocs ? 'border-blue-500/40 glow-blue' : 'border-white/5' }} rounded-[2.5rem] relative overflow-hidden group transition-all duration-500 hover:scale-[1.02]">
                         <div class="flex items-center justify-between relative z-10">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 {{ $hasDocs ? 'bg-green-500/20 text-green-500' : 'bg-blue-600/20 text-blue-500' }} rounded-2xl flex items-center justify-center">
+                            <div class="flex items-center gap-5">
+                                <div class="w-14 h-14 {{ $hasDocs ? 'bg-green-500/20 text-green-500' : 'bg-blue-gradient text-white shadow-lg shadow-blue-500/40' }} rounded-[1.25rem] flex items-center justify-center transition-all duration-500 group-hover:rotate-6">
                                     @if($hasDocs)
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-6 h-6">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-7 h-7">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                                         </svg>
                                     @else
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                                         </svg>
                                     @endif
                                 </div>
-                                <div>
-                                    <h3 class="text-lg font-bold text-white leading-tight">Fleet Documents</h3>
-                                    <p class="text-slate-500 text-xs font-medium">MC Authority, Insurance, W9</p>
+                                <div class="space-y-0.5">
+                                    <h3 class="text-xl font-black text-white italic tracking-tight leading-none uppercase">Fleet Docs</h3>
+                                    <p class="text-slate-400 text-xs font-semibold tracking-wide">Authority, Insurance, W9</p>
                                 </div>
                             </div>
                             @if($hasDocs)
-                                <span class="text-[10px] font-black text-green-500 uppercase tracking-widest">Complete</span>
+                                <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4 text-green-500">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                </div>
                             @else
-                                <a href="/document-upload" class="px-5 py-2.5 bg-blue-600 rounded-xl text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
-                                    Upload Now
+                                <a href="/document-upload" class="px-6 py-3 bg-blue-600 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/40 active:scale-90 relative overflow-hidden group/btn">
+                                    <span class="relative z-10">Upload</span>
+                                    <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 translate-x-full group-hover/btn:translate-x-0 transition-transform duration-500"></div>
                                 </a>
                             @endif
                         </div>
-                        @if(!$hasDocs)
-                            <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-blue-600/5 rounded-full blur-2xl"></div>
-                        @endif
+                        <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-blue-600/5 rounded-full blur-3xl group-hover:bg-blue-600/10 transition-colors"></div>
                     </div>
 
                     <!-- Step 2: Preferences -->
@@ -159,65 +166,83 @@
             </div>
         @else
             <!-- Header -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Truck Zap</h1>
-                    <p class="text-slate-500 font-medium">Welcome back, {{ explode(' ', $user->name)[0] }}!</p>
+            <div class="flex items-start justify-between">
+                <div class="space-y-1">
+                    <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Truck Zap</h1>
+                    <p class="text-slate-400 font-medium">Welcome back, <span class="text-blue-400">{{ explode(' ', $user->name)[0] }}</span>!</p>
                 </div>
-                <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40 text-white font-black italic">
-                    {{ $initials }}
+                <div class="relative group">
+                    <div class="w-14 h-14 bg-blue-gradient rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40 text-white font-black italic transition-transform group-hover:scale-110 group-hover:rotate-3 duration-500">
+                        {{ $initials }}
+                    </div>
+                    <div class="absolute -inset-2 bg-blue-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
             </div>
 
             <!-- Status Card -->
-            <div class="p-8 bg-slate-800/40 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
-                <div class="relative z-10">
-                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Account Status</p>
-                    <h3 class="text-5xl font-black text-white italic tracking-tighter mb-4">{{ $carrierStatus }}</h3>
-                    <a href="/my-requests" class="inline-flex px-6 py-3 bg-slate-900/50 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-white transition-colors">
+            <div class="p-10 bg-royal-gradient rounded-[3rem] relative overflow-hidden group shadow-[0_20px_50px_rgba(30,58,138,0.4)]">
+                <div class="relative z-10 flex flex-col items-start">
+                    <div class="px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg mb-4">
+                        <p class="text-white/70 text-[9px] font-black uppercase tracking-widest leading-none">Account Status</p>
+                    </div>
+                    <h3 class="text-6xl font-black text-white italic tracking-tighter mb-6 leading-none">{{ $carrierStatus }}</h3>
+                    <a href="/my-requests" class="inline-flex items-center gap-2 px-6 py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all shadow-xl active:scale-95">
+                        <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
                         {{ $activeLoadsCount ?? 0 }} Loads Approved
                     </a>
                 </div>
-                <!-- Decorative circle -->
-                <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-600/5 rounded-full blur-3xl group-hover:bg-blue-600/10 transition-colors"></div>
+                <!-- Decorative Elements -->
+                <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/10 to-transparent"></div>
             </div>
 
             <!-- Stats Grid -->
-            <div class="space-y-4">
-                <div class="p-5 bg-blue-600 rounded-3xl flex items-center justify-between shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all cursor-pointer">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 text-white">
+            <div class="grid gap-5">
+                <div class="p-6 glass-morphism border border-white/5 rounded-[2.5rem] flex items-center justify-between shadow-2xl active:scale-[0.98] transition-all cursor-pointer group hover:border-blue-500/30">
+                    <div class="flex items-center gap-5">
+                        <div class="w-12 h-12 bg-blue-gradient rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-white">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V3.375c0-.621-.504 1.125 1.125 1.125h-1.5a3.375 3.375 0 0 1-3.375 3.375H9.75m10.5 11.25V3.375m-10.5 4.5a3.375 3.375 0 0 1-3.375-3.375h-1.5a1.125 1.125 0 0 0-1.125 1.125v12.75c0 .621.504 1.125 1.125 1.125H16.5M9.75 8.25h4.875c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125H9.75V8.25Z" />
                             </svg>
                         </div>
-                        <span class="text-white font-bold">Active Loads</span>
+                        <div class="flex flex-col">
+                            <span class="text-white font-black italic uppercase tracking-tight">Active Loads</span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">In progress</span>
+                        </div>
                     </div>
-                    <span class="text-2xl font-black text-white italic">{{ $activeLoadsCount }}</span>
+                    <span class="text-3xl font-black text-white italic text-glow">{{ $activeLoadsCount }}</span>
                 </div>
 
-                <div class="p-5 bg-orange-500 rounded-3xl flex items-center justify-between shadow-xl shadow-orange-500/20 active:scale-[0.98] transition-all cursor-pointer">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 text-white">
+                <div class="p-6 glass-morphism border border-white/5 rounded-[2.5rem] flex items-center justify-between shadow-2xl active:scale-[0.98] transition-all cursor-pointer group hover:border-orange-500/30">
+                    <div class="flex items-center gap-5">
+                        <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-white">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
                         </div>
-                        <span class="text-white font-bold">Pending Requests</span>
+                        <div class="flex flex-col">
+                            <span class="text-white font-black italic uppercase tracking-tight">Pending</span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Awaiting review</span>
+                        </div>
                     </div>
-                    <span class="text-2xl font-black text-white italic">{{ $pendingRequestsCount }}</span>
+                    <span class="text-3xl font-black text-white italic text-glow text-orange-400">{{ $pendingRequestsCount }}</span>
                 </div>
 
-                <a href="/loads" class="p-5 bg-blue-500 rounded-3xl flex items-center justify-between shadow-xl shadow-blue-500/20 active:scale-[0.98] transition-all block">
-                    <div class="flex items-center gap-4">
-                        <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 text-white">
+                <a href="/loads" class="p-6 bg-blue-gradient rounded-[2.5rem] flex items-center justify-between shadow-2xl active:scale-[0.98] transition-all group overflow-hidden relative">
+                    <div class="flex items-center gap-5 relative z-10">
+                        <div class="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-white">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                             </svg>
                         </div>
-                        <span class="text-white font-bold">Request Loads</span>
+                        <div class="flex flex-col">
+                            <span class="text-white font-black italic uppercase tracking-tight">Request Loads</span>
+                            <span class="text-[9px] font-bold text-white/60 uppercase tracking-widest">Find new freight</span>
+                        </div>
                     </div>
-                    <span class="text-2xl font-black text-white italic">{{ $requestLoadsCount }}</span>
+                    <span class="text-3xl font-black text-white italic relative z-10">{{ $requestLoadsCount }}</span>
+                    <!-- Shine Effect -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                 </a>
             </div>
 

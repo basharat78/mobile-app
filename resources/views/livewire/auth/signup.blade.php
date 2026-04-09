@@ -5,6 +5,8 @@ use Livewire\Volt\Component;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\CarrierRegistered;
+use Illuminate\Support\Facades\Notification;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
@@ -42,6 +44,10 @@ new #[Layout('components.layouts.app')] class extends Component
             $user->carrier()->create([
                 'status' => 'pending',
             ]);
+
+            // Notify all dispatchers
+            $dispatchers = User::where('role', 'dispatcher')->get();
+            Notification::send($dispatchers, new CarrierRegistered($user->name));
         }
 
         Auth::login($user);

@@ -5,12 +5,13 @@ use Livewire\Volt\Component;
 use App\Models\Carrier;
 use App\Models\CarrierDocument;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\CarrierApproved;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
     public $search = '';
     public $statusFilter = '';
-    public $view = 'my'; // 'my' or 'all'
+    public $view = 'all'; // 'my' or 'all'
 
     public function getCarriersProperty()
     {
@@ -51,7 +52,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function updateStatus($carrierId, $status)
     {
-        Carrier::find($carrierId)->update(['status' => $status]);
+        $carrier = Carrier::find($carrierId);
+        $carrier->update(['status' => $status]);
+        
+        if ($status === 'approved') {
+            $carrier->user->notify(new CarrierApproved());
+        }
+
         session()->flash('message', 'Carrier status updated to ' . $status);
     }
 
@@ -66,6 +73,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $approvedDocsCount = $carrier->documents()->where('status', 'approved')->count();
             if ($approvedDocsCount >= 3 && $carrier->status === 'pending') {
                 $carrier->update(['status' => 'approved']);
+                $carrier->user->notify(new CarrierApproved());
                 session()->flash('message', 'Document approved. Carrier also automatically approved.');
                 return;
             }

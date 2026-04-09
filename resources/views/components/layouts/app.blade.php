@@ -65,6 +65,7 @@
             }" 
             x-init="
                 @auth
+                    // Original Echo listener
                     if (window.Echo) {
                         window.Echo.private('notifications.{{ Auth::id() }}')
                             .listen('.NotificationSent', (e) => {
@@ -74,6 +75,7 @@
                     }
                 @endauth
             "
+            @new-notification.window="addToast($event.detail)"
             class="fixed top-24 right-6 z-[200] space-y-4 w-80 pointer-events-none">
                 <template x-for="toast in toasts" :key="toast.id">
                     <div x-show="true" 
@@ -208,6 +210,7 @@
             @endauth
 
             <main class="flex-1 min-h-screen pt-20 {{ Auth::check() && Auth::user()->role === 'dispatcher' ? 'md:ml-64 md:pt-0' : 'max-w-md mx-auto md:max-w-none' }}">
+                <livewire:notification-manager />
                 {{ $slot }}
             </main>
 

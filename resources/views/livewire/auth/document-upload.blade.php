@@ -4,6 +4,9 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Models\CarrierDocument;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use App\Notifications\DocumentUploaded;
+use Illuminate\Support\Facades\Notification;
 use Native\Mobile\Facades\Camera;
 use Native\Mobile\Attributes\OnNative;
 use Native\Mobile\Events\Camera\PhotoTaken;
@@ -80,6 +83,18 @@ new #[Layout('components.layouts.app')] class extends Component
             'file_path' => $destination,
             'status' => 'pending',
         ]);
+
+        // Notify dispatcher(s)
+        $carrier = Auth::user()->carrier;
+        if ($carrier->dispatcher_id) {
+            $dispatcher = User::find($carrier->dispatcher_id);
+            if ($dispatcher) {
+                $dispatcher->notify(new DocumentUploaded(Auth::user()->name, $type));
+            }
+        } else {
+            $dispatchers = User::where('role', 'dispatcher')->get();
+            Notification::send($dispatchers, new DocumentUploaded(Auth::user()->name, $type));
+        }
 
         session()->forget('pending_doc_type');
         $this->uploadStatus = ucfirst(str_replace('_', ' ', $type)) . ' uploaded successfully!';

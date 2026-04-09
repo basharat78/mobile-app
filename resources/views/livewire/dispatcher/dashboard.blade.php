@@ -13,10 +13,10 @@ new #[Layout('components.layouts.app')] class extends Component
     {
         $dispatcherId = Auth::id();
         return [
-            'total_carriers' => Carrier::where('dispatcher_id', $dispatcherId)->count(),
-            'active_loads' => Load::where('dispatcher_id', $dispatcherId)->where('status', 'available')->count(),
-            'pending_docs' => CarrierDocument::whereHas('carrier', fn($q) => $q->where('dispatcher_id', $dispatcherId))->where('status', 'pending')->count(),
-            'total_revenue' => Load::where('dispatcher_id', $dispatcherId)->where('status', 'booked')->sum('rate'),
+            'total_carriers' => Carrier::count(),
+            'active_loads' => Load::where('status', 'available')->count(),
+            'pending_docs' => CarrierDocument::where('status', 'pending')->count(),
+            'total_revenue' => Load::where('status', 'booked')->sum('rate'),
         ];
     }
 
@@ -25,7 +25,6 @@ new #[Layout('components.layouts.app')] class extends Component
         $dispatcherId = Auth::id();
         
         $carriers = Carrier::with('user')
-            ->where('dispatcher_id', $dispatcherId)
             ->latest()
             ->take(5)
             ->get()
@@ -41,7 +40,6 @@ new #[Layout('components.layouts.app')] class extends Component
             });
 
         $bids = LoadRequest::with(['carrier.user', 'loadJob'])
-            ->whereHas('carrier', fn($q) => $q->where('dispatcher_id', $dispatcherId))
             ->latest()
             ->take(5)
             ->get()

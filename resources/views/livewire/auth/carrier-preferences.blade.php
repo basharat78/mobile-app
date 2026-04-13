@@ -51,11 +51,12 @@ new #[Layout('components.layouts.app')] class extends Component
             $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/preferences';
             \Illuminate\Support\Facades\Http::timeout(15)
                 ->post($apiUrl, [
-                    'carrier_id' => $carrier->remote_id ?? $carrier->id,
+                    'email' => Auth::user()->email,
                     'preferred_origin' => $this->preferred_origin,
                     'preferred_destination' => $this->preferred_destination,
                     'preferred_equipment' => $this->preferred_equipment,
                     'min_rate' => $this->min_rate,
+                    'signature_path' => $this->signature,
                 ]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning('Remote preferences sync failed', ['error' => $e->getMessage()]);

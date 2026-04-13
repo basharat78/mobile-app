@@ -8,8 +8,10 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Volt::route('/login', 'auth.login')->name('login');
-Volt::route('/signup', 'auth.signup')->name('signup');
+Route::middleware('guest')->group(function () {
+    Volt::route('/login', 'auth.login')->name('login');
+    Volt::route('/signup', 'auth.signup')->name('signup');
+});
 
 Route::middleware('auth')->group(function () {
     // Carrier Routes

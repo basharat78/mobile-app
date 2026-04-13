@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('carriers', function (Blueprint $table) {
-            //
+            $table->longText('signature_path')->nullable()->change();
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('carriers', function (Blueprint $table) {
-            //
+            $table->string('signature_path', 255)->nullable()->change();
         });
     }
 };

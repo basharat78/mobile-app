@@ -13,10 +13,30 @@
         $hasDocs = $carrier->hasMinimumDocuments();
         $hasPreferences = $carrier->hasPreferences();
         
-        // Real-time Status Sync (v27)
-        if ($carrier->status !== 'approved' && $carrier->remote_id) {
-            try {
-                $statusUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/status/' . Auth::id();
+        // Final Sync Logic (v31 - Identity & Status Polling)
+        try {
+            // Self-Healing: If remote_id is missing, find it by email
+            if (!$carrier->remote_id) {
+                $lookupUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/lookup';
+                $lookupResponse = \Illuminate\Support\Facades\Http::timeout(10)->post($lookupUrl, [
+                    'email' => $user->email
+                ]);
+                
+                if ($lookupResponse->successful()) {
+                    $lookupData = $lookupResponse->json();
+                    if (isset($lookupData['carrier_id'])) {
+                        $carrier->update([
+                            'remote_id' => $lookupData['carrier_id'],
+                            'status' => $lookupData['status'] ?? $carrier->status
+                        ]);
+                    }
+                }
+            }
+
+            // Real-time Status Sync: If not yet approved, poll the central server
+            // Updated (v33): Now uses Email for 100% reliable matching
+            if ($carrier->status !== 'approved' && $carrier->remote_id) {
+                $statusUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/status/' . $user->email;
                 $remoteStatusResponse = \Illuminate\Support\Facades\Http::timeout(5)->get($statusUrl);
                 if ($remoteStatusResponse->successful()) {
                     $remoteStatusData = $remoteStatusResponse->json();
@@ -24,9 +44,9 @@
                         $carrier->update(['status' => $remoteStatusData['status']]);
                     }
                 }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Remote status poll failed', ['error' => $e->getMessage()]);
             }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Dashboard live sync failed', ['error' => $e->getMessage()]);
         }
 
         $isApproved = $carrier->status === 'approved';

@@ -31,11 +31,6 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount()
     {
-        // Fix: Redirect if already logged in (v27)
-        if (Auth::check()) {
-            return redirect('/dashboard');
-        }
-
         try {
             \Illuminate\Support\Facades\DB::connection()->getPdo();
             $this->db_status = 'online';

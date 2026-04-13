@@ -19,6 +19,7 @@ Route::post('/documents/upload', [DocumentController::class, 'upload']);
 Route::group(['prefix' => 'carrier'], function() {
     Route::get('/status/{userId}', [\App\Http\Controllers\Api\CarrierApiController::class, 'getStatus']);
     Route::post('/preferences', [\App\Http\Controllers\Api\CarrierApiController::class, 'syncPreferences']);
+    Route::post('/lookup', [\App\Http\Controllers\Api\CarrierApiController::class, 'lookup']);
 });
 
 // Native Pulse Diagnostic ...

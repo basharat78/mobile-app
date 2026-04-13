@@ -35,15 +35,37 @@
             @keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
             .no-scrollbar::-webkit-scrollbar { display: none; }
             .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            
+            /* High-Performance Glass Replacements (v26) */
+            .glass-morphism {
+                background: rgba(30, 41, 59, 0.8) !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+            .glass {
+                background: rgba(255, 255, 255, 0.05) !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
         </style>
     </head>
-    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: true }" x-init="setTimeout(() => splash = false, 2000)">
-        <!-- Global Background Decorative Elements (Carrier only) -->
+    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: true }" x-init="setTimeout(() => splash = false, 1000)">
+        <!-- Global Background Decorative Elements (Carrier only) - v27 Optimized -->
         @auth @if(Auth::user()->role === 'carrier')
-            <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-                <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse"></div>
-                <div class="absolute top-[20%] -right-[10%] w-[30%] h-[30%] bg-indigo-600/10 blur-[100px] rounded-full animate-pulse" style="animation-delay: 2s"></div>
-                <div class="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-blue-500/5 blur-[150px] rounded-full animate-pulse" style="animation-delay: 4s"></div>
+            <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-slate-900">
+                <div class="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-600/5 rounded-full"></div>
+                <div class="absolute -bottom-[10%] right-[10%] w-[40%] h-[40%] bg-indigo-600/5 rounded-full"></div>
+            </div>
+            
+            <!-- Global Cloud Sync Info (v27) -->
+            <div class="fixed top-6 right-6 z-50 flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 border border-white/5 rounded-full">
+                @if(Auth::user()->carrier->remote_id)
+                    <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="text-[8px] font-black text-white/50 uppercase tracking-widest">Cloud Linked</span>
+                @else
+                    <div class="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
+                    <span class="text-[8px] font-black text-white/50 uppercase tracking-widest">Locally Cached</span>
+                @endif
             </div>
         @endif @endauth
 

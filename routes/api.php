@@ -12,9 +12,16 @@ Route::get('/health', [HealthController::class, 'check']);
 Route::post('/register', [RegisterController::class, 'store']);
 
 // Document upload — no auth for now (will add Sanctum later)
+// ... existing routes ...
 Route::post('/documents/upload', [DocumentController::class, 'upload']);
 
-// Native Pulse Diagnostic — check if nativephp_call exists in the PHP binary
+// Carrier Management APIs (v27)
+Route::group(['prefix' => 'carrier'], function() {
+    Route::get('/status/{userId}', [\App\Http\Controllers\Api\CarrierApiController::class, 'getStatus']);
+    Route::post('/preferences', [\App\Http\Controllers\Api\CarrierApiController::class, 'syncPreferences']);
+});
+
+// Native Pulse Diagnostic ...
 Route::get('/_native/api/diagnostic', function () {
     return [
         'runtime' => function_exists('nativephp_call') ? 'OK' : 'INCOMPATIBLE',

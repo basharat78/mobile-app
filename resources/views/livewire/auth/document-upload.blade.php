@@ -16,6 +16,7 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     public $pendingDocType = null;
     public $uploadStatus = '';
+    public $syncing = []; // Track which docs are currently uploading
 
     public function pickFromGallery($type)
     {
@@ -43,7 +44,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $type = session()->get('pending_doc_type');
         if (!$type) return;
 
+        $this->syncing[$type] = true;
         $this->saveDocument($type, $path);
+        unset($this->syncing[$type]);
     }
 
     #[OnNative(MediaSelected::class)]
@@ -57,7 +60,9 @@ new #[Layout('components.layouts.app')] class extends Component
         $filePath = $files[0]['path'] ?? ($files[0] ?? null);
         if (!$filePath) return;
 
+        $this->syncing[$type] = true;
         $this->saveDocument($type, $filePath);
+        unset($this->syncing[$type]);
     }
 
     protected function saveDocument($type, $sourcePath)
@@ -100,7 +105,7 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             $response = $httpRequest->post($apiUrl, [
-                'carrier_id' => Auth::user()->carrier->id,
+                'carrier_id' => Auth::user()->carrier->remote_id ?? Auth::user()->carrier->id,
                 'type' => $type,
                 'user_name' => Auth::user()->name,
                 'dispatcher_id' => Auth::user()->carrier->dispatcher_id,
@@ -182,11 +187,16 @@ new #[Layout('components.layouts.app')] class extends Component
                             <div class="space-y-1">
                                 <h3 class="text-xl font-black text-white italic uppercase tracking-tight leading-none">{{ str_replace('_', ' ', $doc) }}</h3>
                                 <div class="flex items-center gap-2">
-                                    <div class="w-1.5 h-1.5 rounded-full {{ $statusGradients[$status] }} {{ $status !== 'missing' ? 'animate-pulse shadow-lg shadow-current' : '' }}"></div>
-                                    <span class="text-[9px] font-black uppercase tracking-widest {{ $statusText[$status] }}">{{ $status }}</span>
+                                    @if(isset($syncing[$doc]))
+                                        <div class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></div>
+                                        <span class="text-[9px] font-black uppercase tracking-widest text-blue-400">Syncing to Cloud...</span>
+                                    @else
+                                        <div class="w-1.5 h-1.5 rounded-full {{ $statusGradients[$status] }} {{ $status !== 'missing' ? 'animate-pulse shadow-lg shadow-current' : '' }}"></div>
+                                        <span class="text-[9px] font-black uppercase tracking-widest {{ $statusText[$status] }}">{{ $status }}</span>
+                                    @endif
                                 </div>
                             </div>
-                            <div class="w-12 h-12 glass rounded-2xl flex items-center justify-center">
+                            <div class="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-slate-400">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                                 </svg>

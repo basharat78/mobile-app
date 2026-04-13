@@ -52,6 +52,7 @@ class RegisterController extends Controller
         return response()->json([
             'success' => true,
             'user_id' => $user->id,
+            'carrier_id' => $user->carrier?->id,
             'message' => 'User registered successfully on remote server.',
         ], 201);
     }

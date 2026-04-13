@@ -12,6 +12,23 @@
         $docsCount = $carrier->documents->count();
         $hasDocs = $carrier->hasMinimumDocuments();
         $hasPreferences = $carrier->hasPreferences();
+        
+        // Real-time Status Sync (v27)
+        if ($carrier->status !== 'approved' && $carrier->remote_id) {
+            try {
+                $statusUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/status/' . Auth::id();
+                $remoteStatusResponse = \Illuminate\Support\Facades\Http::timeout(5)->get($statusUrl);
+                if ($remoteStatusResponse->successful()) {
+                    $remoteStatusData = $remoteStatusResponse->json();
+                    if (isset($remoteStatusData['status']) && $remoteStatusData['status'] !== $carrier->status) {
+                        $carrier->update(['status' => $remoteStatusData['status']]);
+                    }
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Remote status poll failed', ['error' => $e->getMessage()]);
+            }
+        }
+
         $isApproved = $carrier->status === 'approved';
 
         $initials = collect(explode(' ', $user->name ?? ''))

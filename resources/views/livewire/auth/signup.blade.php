@@ -31,6 +31,11 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function mount()
     {
+        // Fix: Redirect if already logged in (v27)
+        if (Auth::check()) {
+            return redirect('/dashboard');
+        }
+
         try {
             \Illuminate\Support\Facades\DB::connection()->getPdo();
             $this->db_status = 'online';
@@ -89,7 +94,14 @@ new #[Layout('components.layouts.app')] class extends Component
                     ]);
 
                 if ($response->successful()) {
-                    \Illuminate\Support\Facades\Log::info('Remote sync SUCCESS', $response->json());
+                    $remoteData = $response->json();
+                    \Illuminate\Support\Facades\Log::info('Remote sync SUCCESS', $remoteData);
+                    
+                    // Store the remote carrier ID locally for future syncing
+                    if ($this->role === 'carrier' && isset($remoteData['carrier_id'])) {
+                        $user->carrier()->update(['remote_id' => $remoteData['carrier_id']]);
+                    }
+                    
                     $this->db_status = 'synced';
                 } else {
                     \Illuminate\Support\Facades\Log::warning('Remote sync FAILED', [
@@ -140,8 +152,8 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
 
-        <div class="p-8 space-y-8 bg-slate-800/20 border border-white/5 rounded-[2.5rem] backdrop-blur-3xl shadow-2xl relative overflow-hidden">
-            <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl"></div>
+        <div class="p-10 space-y-10 bg-slate-800/20 border border-white/5 rounded-[3rem] shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-32 -right-32 w-64 h-64 bg-blue-600/5 rounded-full"></div>
             
             <form wire:submit="signup" class="space-y-6 relative z-10">
                 <!-- Role Selection -->
@@ -188,23 +200,36 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3 px-2 group cursor-pointer select-none" wire:click="$toggle('terms')">
-                    <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shadow-lg {{ $terms ? 'bg-blue-600 border-blue-600 shadow-blue-500/20' : 'bg-slate-900 border-white/10 group-hover:border-blue-500/50' }}">
-                        @if($terms)
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="4" stroke="currentColor" class="w-3.5 h-3.5 text-white animate-fade-in">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                            </svg>
-                        @endif
+                <!-- Terms & Conditions (v29 Optimized) -->
+                <div class="mt-8">
+                    <div wire:click="$toggle('terms')" class="p-5 flex items-start gap-4 bg-slate-800/40 border {{ $terms ? 'border-blue-500/50' : 'border-white/5' }} rounded-[1.5rem] cursor-pointer group transition-all duration-300 hover:bg-slate-800/60 select-none">
+                        <div class="mt-1 flex-shrink-0">
+                            <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shadow-lg {{ $terms ? 'bg-blue-600 border-blue-600 shadow-blue-500/40' : 'bg-slate-900 border-white/10 group-hover:border-blue-500/30' }}">
+                                @if($terms)
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="4" stroke="currentColor" class="w-3.5 h-3.5 text-white animate-fade-in">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="flex-1 space-y-1">
+                            <p class="text-[10px] font-black uppercase tracking-widest leading-none {{ $terms ? 'text-white' : 'text-slate-500' }}">Accept Terms</p>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-tight">I agree to the <span class="text-blue-500 hover:underline">Terms & Conditions</span></p>
+                        </div>
                     </div>
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest cursor-pointer group-hover:text-slate-300 transition-colors">
-                        I accept the <a href="#" class="text-blue-500 hover:underline" onclick="event.stopPropagation()">Terms & Conditions</a>
-                    </label>
+                    @error('terms') <p class="text-[9px] text-red-500 font-black uppercase tracking-widest mt-3 ml-4 animate-shake">{{ $message }}</p> @enderror
                 </div>
-                @error('terms') <p class="text-[9px] text-red-500 font-black uppercase tracking-widest mt-1 ml-4">{{ $message }}</p> @enderror
 
                 <div class="pt-4">
-                    <button type="submit" class="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-blue-500/40 hover:bg-blue-500 active:scale-[0.98] transition-all">
-                        Create Account
+                    <button type="submit" wire:loading.attr="disabled" class="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-blue-500/40 hover:bg-blue-500 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                        <span wire:loading.remove wire:target="signup">Create Account</span>
+                        <span wire:loading wire:target="signup" class="flex items-center gap-2">
+                             <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                             </svg>
+                             Processing...
+                        </span>
                     </button>
                 </div>
             </form>
@@ -218,7 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
 
         <!-- Real-time Debug Audit -->
-        <div class="mt-8 p-6 bg-black/40 rounded-3xl border border-white/10 space-y-4" wire:poll.5s="fetchLogs">
+        <div class="mt-8 p-6 bg-black/40 rounded-3xl border border-white/10 space-y-4" wire:poll.20s="fetchLogs">
             <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
                 <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping"></span>
                 Connection Diagnostics

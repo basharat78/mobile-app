@@ -18,45 +18,109 @@ new #[Layout('components.layouts.app')] class extends Component
     public $password_confirmation = '';
     public $role = 'carrier';
     public $terms = false;
+    public $db_status = 'checking';
+    public $debug_log = [];
+
+    public function fetchLogs()
+    {
+        $this->debug_log = collect(explode("\n", \Illuminate\Support\Facades\File::get(storage_path('logs/laravel.log'))))
+            ->reverse()
+            ->take(5)
+            ->toArray();
+    }
+
+    public function mount()
+    {
+        try {
+            \Illuminate\Support\Facades\DB::connection()->getPdo();
+            $this->db_status = 'online';
+        } catch (\Exception $e) {
+            $this->db_status = 'offline';
+            \Illuminate\Support\Facades\Log::error('Database connection check failed', ['error' => $e->getMessage()]);
+        }
+    }
 
     public function signup()
     {
-        $this->validate([
-            'name' => 'required|string|max:255',
-            'company_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'phone' => 'required|unique:users,phone',
-            'password' => 'required|min:8|confirmed',
-            'role' => 'required|in:carrier,dispatcher',
-            'terms' => 'accepted',
-        ]);
-
-        $user = User::create([
+        \Illuminate\Support\Facades\Log::info('Signup attempt started', [
             'name' => $this->name,
-            'company_name' => $this->company_name,
             'email' => $this->email,
-            'phone' => $this->phone,
-            'password' => Hash::make($this->password),
-            'role' => $this->role,
+            'role' => $this->role
         ]);
 
-        if ($this->role === 'carrier') {
-            $user->carrier()->create([
-                'status' => 'pending',
+        try {
+            $this->validate([
+                'name' => 'required|string|max:255',
+                'company_name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email',
+                'phone' => 'required|unique:users,phone',
+                'password' => 'required|min:8|confirmed',
+                'role' => 'required|in:carrier,dispatcher',
+                'terms' => 'accepted',
             ]);
 
-            // Notify all dispatchers
-            $dispatchers = User::where('role', 'dispatcher')->get();
-            Notification::send($dispatchers, new CarrierRegistered($user->name));
+            // 1. Create user locally (for in-app auth/session)
+            $user = User::create([
+                'name' => $this->name,
+                'company_name' => $this->company_name,
+                'email' => $this->email,
+                'phone' => $this->phone,
+                'password' => Hash::make($this->password),
+                'role' => $this->role,
+            ]);
+
+            if ($this->role === 'carrier') {
+                $user->carrier()->create([
+                    'status' => 'pending',
+                ]);
+            }
+
+            // 2. Sync to remote Hostinger MySQL via API
+            try {
+                $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/register';
+                $response = \Illuminate\Support\Facades\Http::timeout(15)
+                    ->post($apiUrl, [
+                        'name' => $this->name,
+                        'company_name' => $this->company_name,
+                        'email' => $this->email,
+                        'phone' => $this->phone,
+                        'password' => $this->password,
+                        'role' => $this->role,
+                    ]);
+
+                if ($response->successful()) {
+                    \Illuminate\Support\Facades\Log::info('Remote sync SUCCESS', $response->json());
+                    $this->db_status = 'synced';
+                } else {
+                    \Illuminate\Support\Facades\Log::warning('Remote sync FAILED', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+                    $this->db_status = 'local_only';
+                }
+            } catch (\Exception $syncError) {
+                \Illuminate\Support\Facades\Log::error('Remote sync ERROR', [
+                    'error' => $syncError->getMessage(),
+                ]);
+                $this->db_status = 'local_only';
+            }
+
+            \Illuminate\Support\Facades\Log::info('Signup successful', ['user_id' => $user->id]);
+
+            Auth::login($user);
+
+            if ($this->role === 'carrier') {
+                return redirect('/document-upload');
+            }
+
+            return redirect('/dispatcher/dashboard');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Signup failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
-
-        Auth::login($user);
-
-        if ($this->role === 'carrier') {
-            return redirect('/document-upload');
-        }
-
-        return redirect('/dispatcher/dashboard');
     }
 };
 ?>
@@ -66,6 +130,14 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="text-center space-y-2">
             <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase">Join Truck Zap</h1>
             <p class="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">Next-Gen Logistics Network</p>
+            
+            <!-- Connection Status -->
+            <div class="flex items-center justify-center gap-2 mt-2">
+                <div class="w-2 h-2 rounded-full {{ $db_status === 'online' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : ($db_status === 'offline' ? 'bg-red-500' : 'bg-slate-500 animate-pulse') }}"></div>
+                <span class="text-[8px] font-black uppercase tracking-widest {{ $db_status === 'online' ? 'text-green-500' : ($db_status === 'offline' ? 'text-red-500' : 'text-slate-500') }}">
+                    DB {{ $db_status }}
+                </span>
+            </div>
         </div>
 
         <div class="p-8 space-y-8 bg-slate-800/20 border border-white/5 rounded-[2.5rem] backdrop-blur-3xl shadow-2xl relative overflow-hidden">
@@ -144,5 +216,58 @@ new #[Layout('components.layouts.app')] class extends Component
                 </p>
             </div>
         </div>
+
+        <!-- Real-time Debug Audit -->
+        <div class="mt-8 p-6 bg-black/40 rounded-3xl border border-white/10 space-y-4" wire:poll.5s="fetchLogs">
+            <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
+                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping"></span>
+                Connection Diagnostics
+            </h3>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
+                    <p class="text-[8px] text-slate-500 uppercase font-black">API Sync</p>
+                    <p class="text-[10px] font-bold mt-1
+                        @if($db_status === 'synced') text-green-500
+                        @elseif($db_status === 'local_only') text-yellow-500
+                        @elseif($db_status === 'online') text-blue-500
+                        @else text-red-500
+                        @endif
+                    ">{{ strtoupper($db_status) }}</p>
+                </div>
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5" wire:ignore>
+                    <p class="text-[8px] text-slate-500 uppercase font-black">Bridge Status</p>
+                    <p class="text-[10px] font-bold mt-1" id="bridge-status">Detecting...</p>
+                </div>
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5" wire:ignore>
+                    <p class="text-[8px] text-slate-500 uppercase font-black">Runtime Service</p>
+                    <p class="text-[10px] font-bold mt-1 text-slate-500" id="runtime-status">Verifying...</p>
+                </div>
+                <div class="bg-white/5 p-3 rounded-xl border border-white/5 col-span-2">
+                    <p class="text-[8px] text-slate-500 uppercase font-black">Remote API URL</p>
+                    <p class="text-[10px] font-bold mt-1 text-blue-400 truncate">{{ env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com' }}</p>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <p class="text-[8px] text-slate-500 uppercase font-black">Latest Server Event</p>
+                <div class="text-[9px] font-mono text-slate-300 bg-black/50 p-3 rounded-xl overflow-x-auto whitespace-pre">
+@foreach($debug_log as $log)
+{{ $log }}
+@endforeach
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+    /**
+     * Local Diagnostic Override (v23)
+     * Let the global app.blade.php handle the heavy lifting,
+     * but we ensure the local elements are ready.
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Signup Diagnostic Panel Ready');
+    });
+</script>

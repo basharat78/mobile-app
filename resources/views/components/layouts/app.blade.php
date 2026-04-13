@@ -1,11 +1,23 @@
+@php
+    $db_online = false;
+    try {
+        \Illuminate\Support\Facades\DB::connection()->getPdo();
+        $db_online = true;
+    } catch (\Exception $e) {
+        $db_online = false;
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Truck Zap') }}</title>
+        <title>{{ config('app.name', 'TruckZap') }}</title>
+
+        <!-- NativePHP Mobile Bridge -->
+        <script src="/native.js?v={{ time() }}"></script>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -114,17 +126,38 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
                                 </svg>
-                                <div class="absolute inset-0 bg-blue-600/20 translate-y-full group-active:translate-y-0 transition-transform"></div>
                             </button>
                         @endif
+                        <div class="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                            <div class="w-1.5 h-1.5 rounded-full {{ $db_online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 animate-pulse' }}"></div>
+                            <span class="text-[7px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">MySQL:{{ $db_online ? 'SYNC' : 'LOST' }}</span>
+                            <button onclick="window.location.reload(true)" class="ml-1 p-0.5 hover:bg-white/10 rounded transition-colors" title="Force Sync">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-2 h-2 text-slate-500">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                            </button>
+                        </div>
                         <div class="flex flex-col">
                             <h2 class="text-xs font-black italic text-white uppercase tracking-tighter leading-none">Truck Zap</h2>
                             <span class="text-[8px] font-bold text-blue-400 uppercase tracking-widest mt-0.5">Carrier Hub</span>
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-blue-gradient p-[1px] shadow-lg shadow-blue-500/20">
+                    <div class="flex items-center gap-3">
+                        <!-- Connection Indicator -->
+                        <div class="flex items-center gap-1.5 px-2 py-1.5 bg-white/5 rounded-xl border border-white/10">
+                            <div class="w-1.5 h-1.5 rounded-full {{ $db_online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 animate-pulse' }}"></div>
+                            <span class="text-[7px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">
+                                {{ $db_online ? 'Sys:On' : 'Sys:Off' }}
+                            </span>
+                            <button onclick="window.location.reload(true)" class="ml-1 p-0.5 hover:bg-white/10 rounded transition-colors" title="Force Sync">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-2 h-2 text-slate-500">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="w-8 h-8 rounded-full bg-blue-gradient p-[1px] shadow-lg shadow-blue-500/20">
                         <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black italic text-white uppercase">
                             {{ substr(trim(Auth::user()->name ?? 'U'), 0, 1) }}
                         </div>
@@ -142,19 +175,28 @@
                                 </svg>
                             </button>
                         @endif
-                        <h2 class="text-sm font-black italic text-white uppercase tracking-tighter">Truck Zap</h2>
+                        <div class="flex items-center gap-3">
+                            <!-- Connection Indicator -->
+                            <div class="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                                <div class="w-1.5 h-1.5 rounded-full {{ $db_online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 animate-pulse' }}"></div>
+                                <span class="text-[8px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">
+                                    {{ $db_online ? 'DB:Online' : 'DB:Offline' }}
+                                </span>
+                            </div>
+                            <h2 class="text-sm font-black italic text-white uppercase tracking-tighter">Truck Zap</h2>
+                        </div>
                     </div>
                 </header>
                 @endif
 
                 @if(Auth::user()->role === 'dispatcher')
                     <!-- Sidebar (Desktop Dispatcher) -->
-                    <aside class="hidden md:flex flex-col w-64 bg-slate-900 border-r border-white/10 p-6 space-y-8 fixed top-0 bottom-0 left-0 z-40">
+                    <aside class="flex flex-col w-20 lg:w-64 bg-slate-900 border-r border-white/10 p-4 lg:p-6 space-y-8 fixed top-0 bottom-0 left-0 z-40">
                         <div class="flex items-center gap-3 mt-4">
-                            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
                                 <span class="text-xl font-black italic text-white">TZ</span>
                             </div>
-                            <h2 class="text-xl font-black italic text-white tracking-tighter">Truck Zap</h2>
+                            <h2 class="text-xl font-black italic text-white tracking-tighter hidden lg:block">Truck Zap</h2>
                         </div>
 
                         <nav class="flex-1 space-y-2">
@@ -162,26 +204,26 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
                                 </svg>
-                                <span>Dashboard</span>
+                                <span class="hidden lg:block">Dashboard</span>
                             </a>
                             <a href="/dispatcher/loads" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all {{ request()->is('dispatcher/loads*') ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V3.375c0-.621-.504-1.125-1.125-1.125h-1.5a3.375 3.375 0 0 1-3.375 3.375H9.75m10.5 11.25V3.375m-10.5 4.5a3.375 3.375 0 0 1-3.375-3.375h-1.5a1.125 1.125 0 0 0-1.125 1.125v12.75c0 .621.504 1.125 1.125 1.125H16.5M9.75 8.25h4.875c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125H9.75V8.25Z" />
                                 </svg>
-                                <span>Load Management</span>
+                                <span class="hidden lg:block">Load Management</span>
                             </a>
                             <a href="/dispatcher/carriers" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all {{ request()->is('dispatcher/carriers*') ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                                 </svg>
-                                <span>Carriers</span>
+                                <span class="hidden lg:block">Carriers</span>
                             </a>
                             <a href="/profile" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all {{ request()->is('profile') ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-white/5 hover:text-white' }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 shrink-0">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.113-.94h1.088c.554 0 1.023.398 1.113.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774a1.125 1.125 0 0 1 .12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.894.15c.542.09.94.56.94 1.112v1.088c0 .554-.398 1.023-.94 1.113l-.894.149c-.424.07-.765.383-.93.78-.164.398-.142.854.108 1.204l.527.738a1.125 1.125 0 0 1-.12 1.45l-.773.773a1.125 1.125 0 0 1-1.45.12l-.737-.527c-.35-.25-.806-.272-1.204-.107-.397.165-.71.505-.78.93l-.15.894c-.09.542-.56.94-1.112.94h-1.088c-.554 0-1.023-.398-1.113-.94l-.149-.894c-.07-.424-.383-.765-.78-.93-.398-.164-.854-.142-1.204.108l-.738.527a1.125 1.125 0 0 1-1.45-.12l-.773-.773a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.112v-1.088c0-.554.398-1.023.94-1.113l.894-.149c.424-.07.765-.383.93-.78.164-.398.142-.854-.108-1.204l-.527-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.806.272 1.204.107.397-.165.71-.505.78-.93l.15-.894Z" />
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                                 </svg>
-                                <span>Settings</span>
+                                <span class="hidden lg:block">Settings</span>
                             </a>
                         </nav>
 
@@ -276,5 +318,79 @@
             @endauth
         </div>
         @livewireScripts
-    </body>
+        <script type="module">
+            /**
+             * Physical Bridge Globalization (v23)
+             * Loading the manually extracted bridge from /public/_native/native.js
+             */
+            import * as Native from '/_native/native.js';
+            
+            window.Native = Native;
+            console.log('Physical Native Bridge Initialized:', window.Native);
+            
+            // Dispatch event for any late-loading components
+            document.dispatchEvent(new CustomEvent('native-ready'));
+            
+            // Update UI Status
+            const bridgeElement = document.getElementById('bridge-status');
+            if (bridgeElement) {
+                bridgeElement.innerText = 'BRIDGE: ACTIVE';
+                bridgeElement.className = 'text-[10px] font-bold mt-1 text-green-500';
+            }
+        </script>
+        
+        <script>
+            /**
+             * Runtime Diagnostic Check
+             * Verifies if the PHP binary inside the APK supports nativephp_call
+             */
+            const checkRuntime = async () => {
+                const runtimeElement = document.getElementById('runtime-status');
+                if (!runtimeElement) return;
+
+                try {
+                    const response = await fetch('/api/_native/api/diagnostic');
+                    const data = await response.json();
+                    
+                    if (data.runtime === 'OK') {
+                        runtimeElement.innerText = 'RUNTIME: OK';
+                        runtimeElement.className = 'text-[10px] font-bold mt-1 text-blue-400';
+                    } else {
+                        runtimeElement.innerText = 'RUNTIME: INCOMPATIBLE';
+                        runtimeElement.className = 'text-[10px] font-bold mt-1 text-red-500';
+                    }
+                } catch (e) {
+                    console.error('Runtime check failed:', e);
+                }
+            };
+
+            document.addEventListener('DOMContentLoaded', () => {
+                checkRuntime();
+
+                // Handle Page Expired (419) errors gracefully
+                if (window.Livewire) {
+                    Livewire.hook('request', ({ fail }) => {
+                        fail(({ status, preventDefault }) => {
+                            if (status === 419) {
+                                preventDefault();
+                                console.warn('CSRF Expired. Refreshing session...');
+                                window.location.reload();
+                            }
+                        });
+                    });
+                }
+                
+                // Secondary check for the bridge UI status
+                setTimeout(() => {
+                    const bridgeElement = document.getElementById('bridge-status');
+                    if (bridgeElement && bridgeElement.innerText.includes('Detecting')) {
+                        if (window.Native) {
+                            bridgeElement.innerText = 'BRIDGE: ACTIVE';
+                            bridgeElement.className = 'text-[10px] font-bold mt-1 text-green-500';
+                        }
+                    }
+                }, 5000);
+            });
+        </script>
+</body>
 </html>

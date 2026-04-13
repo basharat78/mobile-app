@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "756b22e01ddd455ecf6d0201d67d7d3b",
+    "content-hash": "e3aba0064f8751b9d34ef6e089680cbe",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2579,6 +2579,148 @@
                 "source": "https://github.com/NativePHP/mobile-air/tree/3.2.2"
             },
             "time": "2026-04-04T20:00:18+00:00"
+        },
+        {
+            "name": "nativephp/mobile-camera",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-camera.git",
+                "reference": "cdc630767da2dca7bbcc91584fbe8267ea5a55e7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-camera/zipball/cdc630767da2dca7bbcc91584fbe8267ea5a55e7",
+                "reference": "cdc630767da2dca7bbcc91584fbe8267ea5a55e7",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\CameraServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NativePHP",
+                    "email": "info@nativephp.com"
+                }
+            ],
+            "description": "Camera plugin for NativePHP Mobile (Photo capture, Video recording, Gallery picker)",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-camera/issues",
+                "source": "https://github.com/NativePHP/mobile-camera/tree/1.0.2"
+            },
+            "time": "2026-04-01T20:29:25+00:00"
+        },
+        {
+            "name": "nativephp/mobile-device",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-device.git",
+                "reference": "abd880cea32a969770059653ebb6e2c530cfd08d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-device/zipball/abd880cea32a969770059653ebb6e2c530cfd08d",
+                "reference": "abd880cea32a969770059653ebb6e2c530cfd08d",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "^3.0",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\DeviceServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Device hardware operations for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-device/issues",
+                "source": "https://github.com/NativePHP/mobile-device/tree/1.0.2"
+            },
+            "time": "2026-03-20T22:08:33+00:00"
+        },
+        {
+            "name": "nativephp/mobile-system",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NativePHP/mobile-system.git",
+                "reference": "dc861c1ad54985aca536c5ad8a2fe3044c4e9c28"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NativePHP/mobile-system/zipball/dc861c1ad54985aca536c5ad8a2fe3044c4e9c28",
+                "reference": "dc861c1ad54985aca536c5ad8a2fe3044c4e9c28",
+                "shasum": ""
+            },
+            "require": {
+                "nativephp/mobile": "^3.0",
+                "nativephp/mobile-device": "*",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Native\\Mobile\\Providers\\SystemServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Native\\Mobile\\Providers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "System-level operations for NativePHP Mobile",
+            "support": {
+                "issues": "https://github.com/NativePHP/mobile-system/issues",
+                "source": "https://github.com/NativePHP/mobile-system/tree/1.0.2"
+            },
+            "time": "2026-03-20T22:08:33+00:00"
         },
         {
             "name": "nesbot/carbon",
@@ -8971,7 +9113,7 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.3"
+        "php": "^8.2"
     },
     "platform-dev": {},
     "plugin-api-version": "2.6.0"

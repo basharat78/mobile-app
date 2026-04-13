@@ -66,7 +66,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $filename = $type . '_' . time() . '.' . $extension;
         $destination = 'documents/' . $filename;
 
-        // Copy file to storage
+        // Copy file to local storage
         $storagePath = storage_path('app/public/' . $destination);
         $dir = dirname($storagePath);
         if (!is_dir($dir)) {
@@ -77,6 +77,7 @@ new #[Layout('components.layouts.app')] class extends Component
             copy($sourcePath, $storagePath);
         }
 
+        // Save to local DB
         CarrierDocument::create([
             'carrier_id' => Auth::user()->carrier->id,
             'type' => $type,
@@ -84,7 +85,42 @@ new #[Layout('components.layouts.app')] class extends Component
             'status' => 'pending',
         ]);
 
-        // Notify dispatcher(s)
+        // Sync to remote Hostinger MySQL via API
+        try {
+            $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/documents/upload';
+
+            $httpRequest = \Illuminate\Support\Facades\Http::timeout(30);
+
+            if (file_exists($sourcePath)) {
+                $httpRequest = $httpRequest->attach(
+                    'file',
+                    file_get_contents($sourcePath),
+                    $filename
+                );
+            }
+
+            $response = $httpRequest->post($apiUrl, [
+                'carrier_id' => Auth::user()->carrier->id,
+                'type' => $type,
+                'user_name' => Auth::user()->name,
+                'dispatcher_id' => Auth::user()->carrier->dispatcher_id,
+            ]);
+
+            if ($response->successful()) {
+                \Illuminate\Support\Facades\Log::info('Document remote sync SUCCESS', $response->json());
+            } else {
+                \Illuminate\Support\Facades\Log::warning('Document remote sync FAILED', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+            }
+        } catch (\Exception $syncError) {
+            \Illuminate\Support\Facades\Log::error('Document remote sync ERROR', [
+                'error' => $syncError->getMessage(),
+            ]);
+        }
+
+        // Notify dispatcher(s) locally
         $carrier = Auth::user()->carrier;
         if ($carrier->dispatcher_id) {
             $dispatcher = User::find($carrier->dispatcher_id);

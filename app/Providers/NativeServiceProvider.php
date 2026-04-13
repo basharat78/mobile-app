@@ -34,12 +34,10 @@ class NativeServiceProvider extends ServiceProvider
     public function plugins(): array
     {
         return [
-            // \Native\Mobile\Providers\CameraServiceProvider::class,
-            // \Native\Mobile\Providers\DeviceServiceProvider::class,
-            // \Native\Mobile\Providers\SystemServiceProvider::class,
-        
-        
-        
+            \Native\Mobile\Providers\CameraServiceProvider::class,
+            \Native\Mobile\Providers\DeviceServiceProvider::class,
+            \Native\Mobile\Providers\SystemServiceProvider::class,
+
         ];
     }
 }

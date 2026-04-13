@@ -8,6 +8,7 @@ class Carrier extends Model
 {
     protected $fillable = [
         'user_id',
+        'remote_id',
         'status',
         'preferred_origin',
         'preferred_destination',

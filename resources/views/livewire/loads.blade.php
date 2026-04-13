@@ -9,21 +9,86 @@ use Illuminate\Support\Facades\Auth;
 new #[Layout('components.layouts.app')] class extends Component
 {
     public $search = '';
+    public $isSyncing = false;
 
     public function mount()
     {
         if (!Auth::user()->isApproved()) {
             return redirect('/dashboard');
         }
+        
+        $this->syncLoads();
+    }
+
+    public function syncLoads()
+    {
+        $this->isSyncing = true;
+        $user = Auth::user();
+        
+        try {
+            $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/loads/' . $user->email;
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->get($apiUrl);
+            
+            if ($response->successful()) {
+                $remoteLoads = $response->json()['loads'] ?? [];
+                $message = $response->json()['message'] ?? 'Freight board updated!';
+                
+                // Track synced IDs to delete those no longer available
+                $syncedIds = [];
+                
+                foreach ($remoteLoads as $l) {
+                    $load = Load::updateOrCreate(
+                        ['id' => $l['id']],
+                        [
+                            'dispatcher_id' => $l['dispatcher_id'],
+                            'carrier_id' => $user->carrier->id, // Map server ID to local carrier ID
+                            'pickup_location' => $l['pickup_location'],
+                            'drop_location' => $l['drop_location'],
+                            'miles' => $l['miles'],
+                            'rate' => $l['rate'],
+                            'equipment_type' => $l['equipment_type'],
+                            'notes' => $l['notes'],
+                            'pickup_time' => $l['pickup_time'],
+                            'drop_off_time' => $l['drop_off_time'],
+                            'deadhead' => $l['deadhead'],
+                            'total_miles' => $l['total_miles'],
+                            'rpm' => $l['rpm'],
+                            'weight' => $l['weight'],
+                            'broker_name' => $l['broker_name'],
+                            'status' => $l['status'],
+                        ]
+                    );
+                    $syncedIds[] = $load->id;
+                }
+                
+                // Clear local loads that were targeted to me but are now gone from server
+                Load::where('carrier_id', $user->carrier->id)
+                    ->whereNotIn('id', $syncedIds)
+                    ->delete();
+
+                session()->flash('sync_success', $message);
+            } else {
+                $errorMessage = $response->json()['message'] ?? 'Remote server returned ' . $response->status();
+                session()->flash('sync_error', "API {$response->status()}: " . $errorMessage);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Load sync failed', ['error' => $e->getMessage()]);
+            session()->flash('sync_error', "Network Error: " . $e->getMessage());
+        }
+        
+        $this->isSyncing = false;
     }
 
     #[Computed]
     public function loads()
     {
         return Load::where('status', 'available')
+            ->where('carrier_id', Auth::user()->carrier->id)
             ->when($this->search, function ($query) {
-                $query->where('pickup_location', 'like', '%' . $this->search . '%')
+                $query->where(function($q) {
+                    $q->where('pickup_location', 'like', '%' . $this->search . '%')
                       ->orWhere('drop_location', 'like', '%' . $this->search . '%');
+                });
             })
             ->latest()
             ->get();
@@ -62,10 +127,10 @@ new #[Layout('components.layouts.app')] class extends Component
                 <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Find Loads</h1>
                 <p class="text-slate-400 font-medium text-sm">Marketplace direct from dispatch</p>
             </div>
-            <div class="px-3 py-1.5 glass-morphism border border-blue-500/20 rounded-full flex items-center gap-2">
-                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
-                <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest">Live Updates</span>
-            </div>
+            <button wire:click="syncLoads" wire:loading.attr="disabled" class="px-3 py-1.5 glass-morphism border border-blue-500/20 rounded-full flex items-center gap-2 group hover:bg-blue-500/10 transition-all active:scale-95 disabled:opacity-50">
+                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full {{ $isSyncing ? 'animate-ping' : 'animate-pulse' }} shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+                <span class="text-[9px] font-black text-blue-400 uppercase tracking-widest">{{ $isSyncing ? 'Syncing...' : 'Live Updates' }}</span>
+            </button>
         </div>
 
         <!-- Search -->
@@ -78,14 +143,28 @@ new #[Layout('components.layouts.app')] class extends Component
             <input wire:model.live="search" type="text" class="block w-full pl-14 pr-6 py-5 glass-morphism border border-white/5 rounded-[1.5rem] text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all shadow-[0_10px_30px_-10px_rgba(0,0,0,0.3)]" placeholder="Search locations...">
         </div>
 
-        @if (session()->has('message'))
-            <div class="p-5 glass-morphism border border-green-500/30 rounded-2xl flex items-center gap-4 animate-fadeIn">
-                <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4 text-green-500">
+        @if (session()->has('sync_error'))
+            <div class="p-5 glass-morphism border border-red-500/30 rounded-2xl flex items-center gap-4 animate-fadeIn">
+                <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4 text-red-500">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                </div>
+                <div class="flex flex-col">
+                    <p class="text-red-400 text-[10px] font-black uppercase tracking-widest">Connect Error</p>
+                    <p class="text-red-500/80 text-xs font-bold">{{ session('sync_error') }}</p>
+                </div>
+            </div>
+        @endif
+
+        @if (session()->has('sync_success'))
+            <div class="p-5 glass-morphism border border-blue-500/30 rounded-2xl flex items-center gap-4 animate-fadeIn">
+                <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4 text-blue-500">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
                 </div>
-                <p class="text-green-400 text-sm font-bold">{{ session('message') }}</p>
+                <p class="text-blue-400 text-[10px] font-black uppercase tracking-widest">{{ session('sync_success') }}</p>
             </div>
         @endif
 

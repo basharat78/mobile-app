@@ -104,7 +104,7 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncDashboard">
+<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.30s="syncDashboard">
     @php $s = $this->stats; @endphp
     
     @if(!$s['isApproved'])

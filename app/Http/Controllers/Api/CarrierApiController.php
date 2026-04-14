@@ -86,4 +86,37 @@ class CarrierApiController extends Controller
             'message' => 'Preferences and signature synced to cloud via email.'
         ]);
     }
+    /**
+     * Authenticate a carrier from cloud (v42 Identity Recovery)
+     */
+    public function authenticate(Request $request)
+    {
+        $request->validate([
+            'login' => 'required',
+            'password' => 'required',
+        ]);
+
+        $fieldType = filter_var($request->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+        
+        $user = User::with('carrier')->where($fieldType, $request->login)->first();
+
+        if (!$user || !\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+            return response()->json(['success' => false, 'message' => 'Cloud credentials invalid.'], 401);
+        }
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'role' => $user->role,
+                'company_name' => $user->company_name,
+            ],
+            'carrier' => [
+                'id' => $user->carrier->id,
+                'status' => $user->carrier->status,
+            ]
+        ]);
+    }
 }

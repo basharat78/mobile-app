@@ -19,12 +19,59 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $fieldType = filter_var($this->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
 
+        // 1. Try Local Login
         if (Auth::attempt([$fieldType => $this->login, 'password' => $this->password], $this->remember)) {
             session()->regenerate();
             return redirect()->intended('/dashboard');
         }
 
-        $this->addError('login', 'The provided credentials do not match our records.');
+        // 2. Local Login Failed - Try Cloud Recovery (v42)
+        try {
+            $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/authenticate';
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl, [
+                'login' => $this->login,
+                'password' => $this->password
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                // Cloud Auth Success! SYNC profile to local DB
+                $user = \App\Models\User::updateOrCreate(
+                    ['email' => $data['user']['email']],
+                    [
+                        'name' => $data['user']['name'],
+                        'phone' => $data['user']['phone'],
+                        'password' => \Illuminate\Support\Facades\Hash::make($this->password),
+                        'role' => $data['user']['role'],
+                        'company_name' => $data['user']['company_name'],
+                    ]
+                );
+
+                if ($user->role === 'carrier') {
+                    $user->carrier()->updateOrCreate(
+                        ['user_id' => $user->id],
+                        [
+                            'status' => $data['carrier']['status'],
+                            'remote_id' => $data['carrier']['id'],
+                        ]
+                    );
+                }
+
+                Auth::login($user, $this->remember);
+                session()->regenerate();
+                return redirect()->intended('/dashboard');
+            } else {
+                // Return server-provided error if available
+                $serverMessage = $response->json()['message'] ?? 'Identity not found on cloud.';
+                $this->addError('login', 'Cloud Error: ' . $serverMessage);
+                return;
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Cloud auth recovery failed', ['error' => $e->getMessage()]);
+            $this->addError('login', 'Network Error: Check internet connection for identity recovery.');
+            return;
+        }
     }
 
     // public function biometricLogin($status)

@@ -16,9 +16,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     // Carrier Routes
     Route::middleware('role:carrier')->group(function () {
-        Route::get('/dashboard', function () {
-            return view('dashboard');
-        })->name('dashboard');
+        Volt::route('/dashboard', 'dashboard')->name('dashboard');
 
         Volt::route('/document-upload', 'auth.document-upload')->name('document-upload');
         Volt::route('/preferences', 'auth.carrier-preferences')->name('preferences');

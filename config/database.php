@@ -37,10 +37,10 @@ return [
             'url' => env('DB_URL'),
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
-            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', false), // Disabled for high-volume marketplace
+            'busy_timeout' => 5000, // 5 second wait to prevent locking
+            'journal_mode' => 'WAL', // High-performance concurrent access
+            'synchronous' => 'NORMAL',
             'transaction_mode' => 'DEFERRED',
         ],
 

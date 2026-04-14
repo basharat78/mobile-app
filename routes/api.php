@@ -21,6 +21,8 @@ Route::group(['prefix' => 'carrier'], function() {
     Route::post('/preferences', [\App\Http\Controllers\Api\CarrierApiController::class, 'syncPreferences']);
     Route::post('/lookup', [\App\Http\Controllers\Api\CarrierApiController::class, 'lookup']);
     Route::get('/loads/{email}', [\App\Http\Controllers\Api\LoadApiController::class, 'getAvailable'])->where('email', '.*');
+    Route::post('/loads/request', [\App\Http\Controllers\Api\LoadApiController::class, 'postRequest']);
+    Route::post('/authenticate', [\App\Http\Controllers\Api\CarrierApiController::class, 'authenticate']);
 });
 
 // Native Pulse Diagnostic ...

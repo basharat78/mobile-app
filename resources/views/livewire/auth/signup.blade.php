@@ -59,6 +59,19 @@ new #[Layout('components.layouts.app')] class extends Component
                 'terms' => 'accepted',
             ]);
 
+            // 0. Cloud Duplicate Check (v42)
+            try {
+                $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/lookup';
+                $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl, ['email' => $this->email]);
+                
+                if ($response->successful()) {
+                    session()->flash('error', 'Account already exists on our server. Please Login instead.');
+                    return;
+                }
+            } catch (\Exception $e) {
+                // Network error - continue local signup as fallback
+            }
+
             // 1. Create user locally (for in-app auth/session)
             $user = User::create([
                 'name' => $this->name,

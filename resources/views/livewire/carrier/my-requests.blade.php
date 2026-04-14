@@ -19,6 +19,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public function with()
     {
         $query = LoadRequest::with('loadJob')
+            ->whereHas('loadJob')
             ->where('carrier_id', Auth::user()->carrier->id)
             ->latest();
 

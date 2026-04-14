@@ -12,11 +12,11 @@ class CarrierApiController extends Controller
 {
     /**
      * Get the current status of a carrier (Pending/Approved/Rejected)
-     * Updated (v33): Now uses Email for 100% reliable matching
+     * Updated (v51): Now includes document statuses for real-time doc sync
      */
     public function getStatus($email)
     {
-        $user = User::with('carrier')->where('email', $email)->first();
+        $user = User::with(['carrier', 'carrier.documents'])->where('email', $email)->first();
         
         if (!$user || !$user->carrier) {
             return response()->json(['success' => false, 'message' => 'Carrier not found on cloud server.'], 404);
@@ -25,7 +25,11 @@ class CarrierApiController extends Controller
         return response()->json([
             'success' => true,
             'status' => $user->carrier->status,
-            'remote_id' => $user->carrier->id
+            'remote_id' => $user->carrier->id,
+            'documents' => $user->carrier->documents->map(fn($d) => [
+                'type' => $d->type,
+                'status' => $d->status,
+            ])->values(),
         ]);
     }
 

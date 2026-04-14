@@ -11,14 +11,16 @@ new #[Layout('components.layouts.app')] class extends Component
     public $search = '';
     public $isSyncing = false;
     public $activeLoadNotes = null;
+    public $isApproved = false;
+    public $processingLoadId = null; // Immediately locks button on click
 
     public function mount()
     {
-        if (!Auth::user()->isApproved()) {
-            return redirect('/dashboard');
-        }
+        $this->isApproved = Auth::user()->isApproved();
         
-        $this->syncLoads();
+        if ($this->isApproved) {
+            $this->syncLoads();
+        }
     }
 
     public function syncLoads()
@@ -78,6 +80,9 @@ new #[Layout('components.layouts.app')] class extends Component
                 Load::where('carrier_id', $user->carrier->id)
                     ->whereNotIn('id', $syncedIds)
                     ->delete();
+
+                // Clean up orphaned requests (Ghost Load Cleanup)
+                \App\Models\LoadRequest::whereDoesntHave('loadJob')->delete();
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning('Load sync failed', ['error' => $e->getMessage()]);
@@ -113,6 +118,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function requestLoad($loadId)
     {
+        // Lock the button IMMEDIATELY to prevent double-click
+        $this->processingLoadId = $loadId;
+
         $carrier = Auth::user()->carrier;
         $user = Auth::user();
 
@@ -151,8 +159,37 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncLoads">
+<div class="px-6 py-12 space-y-10 relative z-10" @if($isApproved) wire:poll.10s="syncLoads" @endif>
     <div class="max-w-md mx-auto space-y-10">
+
+    @if(!$isApproved)
+        <!-- Account Not Approved State -->
+        <div class="space-y-8 animate-fadeIn">
+            <div class="space-y-1">
+                <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Find Loads</h1>
+                <p class="text-slate-400 font-medium text-sm">Marketplace direct from dispatch</p>
+            </div>
+
+            <div class="p-10 glass-morphism border border-yellow-500/20 rounded-[3rem] relative overflow-hidden">
+                <div class="flex flex-col items-center text-center space-y-6 relative z-10">
+                    <div class="w-20 h-20 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-yellow-500">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        </svg>
+                    </div>
+                    <div class="space-y-2">
+                        <h2 class="text-2xl font-black text-white italic uppercase tracking-tighter">Account Pending</h2>
+                        <p class="text-slate-400 text-sm font-medium leading-relaxed max-w-[280px]">Your account is under review. Please complete the onboarding steps to unlock the freight marketplace.</p>
+                    </div>
+                    <div class="flex flex-col gap-3 w-full pt-2">
+                        <a href="/document-upload" class="w-full py-4 rounded-2xl bg-blue-gradient text-center text-[11px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-500/30 active:scale-95 transition-all">Upload Documents</a>
+                        <a href="/dashboard" class="w-full py-4 rounded-2xl glass-morphism border border-white/10 text-center text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] active:scale-95 transition-all">Back to Dashboard</a>
+                    </div>
+                </div>
+                <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-yellow-500/5 rounded-full blur-3xl"></div>
+            </div>
+        </div>
+    @else
         <!-- Header -->
         <div class="flex items-end justify-between">
             <div class="space-y-1">
@@ -287,13 +324,23 @@ new #[Layout('components.layouts.app')] class extends Component
                             </svg>
                         </button>
 
-                        @if($status)
-                            <button disabled class="flex-1 py-5 rounded-2xl glass-morphism border border-white/5 bg-white/5 text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] shadow-inner opacity-50 capitalize">
-                                {{ $status === 'pending' ? 'REQUESTED' : strtoupper($status) }}
+                        @php
+                            $isProcessing = $processingLoadId === $load->id;
+                        @endphp
+
+                        @if($status || $isProcessing)
+                            <button disabled class="flex-1 py-5 rounded-2xl glass-morphism border border-white/5 bg-white/5 text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] shadow-inner opacity-50">
+                                {{ $isProcessing && !$status ? 'SENDING...' : ($status === 'pending' ? 'REQUESTED' : strtoupper($status)) }}
                             </button>
                         @else
-                            <button wire:click="requestLoad({{ $load->id }})" class="flex-1 py-5 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-[11px] font-black text-white uppercase tracking-[0.2em] shadow-[0_10px_25px_-5px_rgba(37,99,235,0.4)] transition-all active:scale-[0.98] drop-shadow-lg">
-                                REQUEST LOAD
+                            <button 
+                                wire:click="requestLoad({{ $load->id }})" 
+                                wire:loading.attr="disabled"
+                                wire:target="requestLoad"
+                                class="flex-1 py-5 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-[11px] font-black text-white uppercase tracking-[0.2em] shadow-[0_10px_25px_-5px_rgba(37,99,235,0.4)] transition-all active:scale-[0.98] drop-shadow-lg disabled:opacity-60"
+                            >
+                                <span wire:loading.remove wire:target="requestLoad">REQUEST LOAD</span>
+                                <span wire:loading wire:target="requestLoad">SENDING...</span>
                             </button>
                         @endif
                     </div>
@@ -341,5 +388,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </button>
             </div>
         </div>
+    @endif
+
     @endif
 </div>

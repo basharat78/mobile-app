@@ -18,6 +18,39 @@ new #[Layout('components.layouts.app')] class extends Component
     public $uploadStatus = '';
     public $syncing = []; // Track which docs are currently uploading
 
+    public function mount()
+    {
+        $this->syncDocStatuses();
+    }
+
+    public function syncDocStatuses()
+    {
+        $user = Auth::user();
+        $carrier = $user->carrier;
+        if (!$carrier) return;
+
+        try {
+            $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/status/' . $user->email;
+            $response = \Illuminate\Support\Facades\Http::timeout(8)->get($apiUrl);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                // Sync document statuses from cloud to local DB
+                if (!empty($data['documents'])) {
+                    foreach ($data['documents'] as $remoteDoc) {
+                        \App\Models\CarrierDocument::updateOrCreate(
+                            ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
+                            ['status' => $remoteDoc['status']]
+                        );
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Doc status sync failed', ['error' => $e->getMessage()]);
+        }
+    }
+
     public function pickFromGallery($type)
     {
         $this->pendingDocType = $type;
@@ -161,64 +194,107 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         @endif
 
-        <div class="space-y-5">
+        <div class="space-y-5" wire:poll.30s="syncDocStatuses">
             @php
-                $uploadedDocs = Auth::user()->carrier?->documents?->pluck('status', 'type')?->toArray() ?? [];
+                $uploadedDocs = Auth::user()->carrier?->documents()->get()->keyBy('type');
             @endphp
             @foreach(['mc_authority', 'insurance', 'w9'] as $doc)
                 @php
-                    $status = $uploadedDocs[$doc] ?? 'missing';
-                    $statusGradients = [
-                        'missing' => 'bg-slate-700/50',
-                        'pending' => 'bg-gradient-to-br from-yellow-500 to-orange-600',
-                        'approved' => 'bg-gradient-to-br from-green-500 to-emerald-600',
-                        'rejected' => 'bg-gradient-to-br from-red-500 to-rose-600',
-                    ];
-                    $statusText = [
-                        'missing' => 'text-slate-500',
-                        'pending' => 'text-yellow-500',
-                        'approved' => 'text-green-500',
-                        'rejected' => 'text-red-500',
-                    ];
+                    $docRecord = $uploadedDocs[$doc] ?? null;
+                    $status = $docRecord?->status ?? 'missing';
+                    $isApproved = $status === 'approved';
+                    $isRejected = $status === 'rejected';
+                    $borderClass = match($status) {
+                        'approved' => 'border-green-500/30',
+                        'rejected' => 'border-red-500/40',
+                        'pending'  => 'border-yellow-500/20',
+                        default    => 'border-white/5',
+                    };
                 @endphp
-                <div class="p-8 glass-morphism border {{ $status === 'missing' ? 'border-white/5' : 'border-'.$statusText[$status] ?? 'white/10' }} rounded-[2.5rem] relative overflow-hidden group">
+                <div class="p-8 glass-morphism {{ $borderClass }} border rounded-[2.5rem] relative overflow-hidden group">
                     <div class="relative z-10">
-                        <div class="flex items-center justify-between mb-6">
+
+                        {{-- Header Row --}}
+                        <div class="flex items-center justify-between mb-4">
                             <div class="space-y-1">
                                 <h3 class="text-xl font-black text-white italic uppercase tracking-tight leading-none">{{ str_replace('_', ' ', $doc) }}</h3>
-                                <div class="flex items-center gap-2">
-                                    @if(isset($syncing[$doc]))
-                                        <div class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></div>
-                                        <span class="text-[9px] font-black uppercase tracking-widest text-blue-400">Syncing to Cloud...</span>
-                                    @else
-                                        <div class="w-1.5 h-1.5 rounded-full {{ $statusGradients[$status] }} {{ $status !== 'missing' ? 'animate-pulse shadow-lg shadow-current' : '' }}"></div>
-                                        <span class="text-[9px] font-black uppercase tracking-widest {{ $statusText[$status] }}">{{ $status }}</span>
-                                    @endif
+                            </div>
+                            {{-- Status Icon --}}
+                            @if($isApproved)
+                                <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-5 h-5 text-green-500">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                </div>
+                            @elseif($isRejected)
+                                <div class="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-5 h-5 text-red-500">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                            @elseif($status === 'pending')
+                                <div class="flex items-center gap-1.5">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></div>
+                                    <span class="text-[9px] font-black uppercase tracking-widest text-yellow-500">Under Review</span>
+                                </div>
+                            @endif
+                        </div>
+
+                        {{-- Status Banner --}}
+                        @if($isApproved)
+                            <div class="mb-4 px-4 py-2.5 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-green-500 shrink-0">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                                <span class="text-[10px] font-black text-green-500 uppercase tracking-widest">Verified by Dispatcher</span>
+                            </div>
+                        @elseif($isRejected)
+                            <div class="mb-4 px-4 py-2.5 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-red-500 shrink-0">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                                </svg>
+                                <span class="text-[10px] font-black text-red-500 uppercase tracking-widest">Rejected — Please re-upload</span>
+                            </div>
+                        @endif
+
+                        {{-- Syncing indicator --}}
+                        @if(isset($syncing[$doc]))
+                            <div class="mb-4 flex items-center gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping"></div>
+                                <span class="text-[9px] font-black uppercase tracking-widest text-blue-400">Syncing to Cloud...</span>
+                            </div>
+                        @endif
+
+                        {{-- Action Buttons --}}
+                        @if($isApproved)
+                            {{-- Approved: Buttons disabled --}}
+                            <div class="grid grid-cols-2 gap-4 opacity-30 pointer-events-none">
+                                <div class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white">
+                                    Upload
+                                </div>
+                                <div class="flex items-center justify-center py-4 px-4 bg-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white gap-2">
+                                    Scan
                                 </div>
                             </div>
-                            <div class="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-slate-400">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                                </svg>
+                        @else
+                            {{-- Missing, Pending, or Rejected: Buttons active --}}
+                            <div class="grid grid-cols-2 gap-4">
+                                <button wire:click="pickFromGallery('{{ $doc }}')" class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 group/btn overflow-hidden relative">
+                                    <span wire:loading.remove wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">{{ $isRejected ? 'Re-upload' : 'Upload' }}</span>
+                                    <span wire:loading wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">...</span>
+                                    <div class="absolute inset-0 bg-white/5 translate-y-full group-hover/btn:translate-y-0 transition-transform"></div>
+                                </button>
+                                <button wire:click="scanWithCamera('{{ $doc }}')" class="flex items-center justify-center py-4 px-4 {{ $isRejected ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/30' }} rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all gap-2 shadow-lg active:scale-95 group/btn overflow-hidden relative">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 relative z-10">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                                    </svg>
+                                    <span wire:loading.remove wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10">Scan</span>
+                                    <span wire:loading wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10">...</span>
+                                </button>
                             </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <button wire:click="pickFromGallery('{{ $doc }}')" class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 group/btn overflow-hidden relative">
-                                <span wire:loading.remove wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">Upload</span>
-                                <span wire:loading wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">...</span>
-                                <div class="absolute inset-0 bg-white/5 translate-y-full group-hover/btn:translate-y-0 transition-transform"></div>
-                            </button>
-                            <button wire:click="scanWithCamera('{{ $doc }}')" class="flex items-center justify-center py-4 px-4 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-blue-500 transition-all gap-2 shadow-lg shadow-blue-500/30 active:scale-95 group/btn overflow-hidden relative">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 relative z-10">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-                                </svg>
-                                <span wire:loading.remove wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10">Scan</span>
-                                <span wire:loading wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10">...</span>
-                                <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-blue-600 translate-x-full group-hover/btn:translate-x-0 transition-transform duration-500"></div>
-                            </button>
-                        </div>
+                        @endif
+
                     </div>
                 </div>
             @endforeach

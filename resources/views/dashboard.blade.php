@@ -68,9 +68,14 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return [
             'isApproved' => $isApproved,
-            'activeLoadsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'approved')->count() : 0,
-            'pendingRequestsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'pending')->count() : 0,
-            'requestLoadsCount' => Load::where('carrier_id', $carrier->id)->count(), // All available for them
+            'activeLoadsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'approved')->whereHas('loadJob')->count() : 0,
+            'pendingRequestsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'pending')->whereHas('loadJob')->count() : 0,
+            'requestLoadsCount' => Load::where('carrier_id', $carrier->id)
+                ->whereDoesntHave('requests', function($q) use ($carrier) {
+                    $q->where('carrier_id', $carrier->id);
+                })
+                ->where('status', 'active')
+                ->count(),
             'status' => ucfirst($carrier->status),
             'initials' => collect(explode(' ', $user->name ?? ''))->filter()->map(fn($n) => substr($n, 0, 1))->take(2)->join('') ?: 'U',
             'recentUpdates' => $this->getRecentUpdates($carrier, $isApproved),

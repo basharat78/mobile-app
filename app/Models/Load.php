@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Load extends Model
 {
     protected $fillable = [
+        'id', // Allow cloud ID to be preserved during sync
         'dispatcher_id',
         'carrier_id',
         'pickup_location',

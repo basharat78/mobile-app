@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e3aba0064f8751b9d34ef6e089680cbe",
+    "content-hash": "4b0e59823c48a0b9bc03e47490becb5c",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -6759,6 +6759,50 @@
             "time": "2025-12-02T11:56:42+00:00"
         },
         {
+            "name": "vendor/nativephp-local-notification",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/notification-plugin",
+                "reference": "e61cbe42984f5d42fd5f749a718e8354d7605485"
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Vendor\\LocalNotification\\LocalNotificationServiceProvider"
+                    ],
+                    "aliases": {
+                        "LocalNotification": "Vendor\\LocalNotification\\Facades\\LocalNotification"
+                    }
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Vendor\\LocalNotification\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Your Name",
+                    "email": "you@example.com"
+                }
+            ],
+            "description": "WhatsApp-style local notifications with sound for NativePHP Mobile (iOS & Android)",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "vlucas/phpdotenv",
             "version": "v5.6.3",
             "source": {
@@ -9109,7 +9153,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "vendor/nativephp-local-notification": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

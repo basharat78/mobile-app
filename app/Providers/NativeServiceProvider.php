@@ -37,6 +37,8 @@ class NativeServiceProvider extends ServiceProvider
             \Native\Mobile\Providers\CameraServiceProvider::class,
             \Native\Mobile\Providers\DeviceServiceProvider::class,
             \Native\Mobile\Providers\SystemServiceProvider::class,
+            \Vendor\LocalNotification\LocalNotificationServiceProvider::class,
+        
 
         ];
     }

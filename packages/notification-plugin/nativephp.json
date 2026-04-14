@@ -1,0 +1,87 @@
+{
+    "namespace": "LocalNotification",
+    "bridge_functions": [
+        {
+            "name": "LocalNotification.Show",
+            "ios": "LocalNotificationFunctions.Show",
+            "android": "com.vendor.plugins.localnotification.LocalNotificationFunctions.Show",
+            "description": "Display a local notification with title, body, sound, badge and optional data"
+        },
+        {
+            "name": "LocalNotification.RequestPermission",
+            "ios": "LocalNotificationFunctions.RequestPermission",
+            "android": "com.vendor.plugins.localnotification.LocalNotificationFunctions.RequestPermission",
+            "description": "Request notification permission from the user"
+        },
+        {
+            "name": "LocalNotification.CheckPermission",
+            "ios": "LocalNotificationFunctions.CheckPermission",
+            "android": "com.vendor.plugins.localnotification.LocalNotificationFunctions.CheckPermission",
+            "description": "Check current notification permission status"
+        },
+        {
+            "name": "LocalNotification.Cancel",
+            "ios": "LocalNotificationFunctions.Cancel",
+            "android": "com.vendor.plugins.localnotification.LocalNotificationFunctions.Cancel",
+            "description": "Cancel a pending or delivered notification by ID"
+        },
+        {
+            "name": "LocalNotification.CancelAll",
+            "ios": "LocalNotificationFunctions.CancelAll",
+            "android": "com.vendor.plugins.localnotification.LocalNotificationFunctions.CancelAll",
+            "description": "Cancel all pending and delivered notifications"
+        },
+        {
+            "name": "LocalNotification.SetBadge",
+            "ios": "LocalNotificationFunctions.SetBadge",
+            "android": "com.vendor.plugins.localnotification.LocalNotificationFunctions.SetBadge",
+            "description": "Set the app badge count"
+        },
+        {
+            "name": "LocalNotification.CreateChannel",
+            "ios": "LocalNotificationFunctions.CreateChannel",
+            "android": "com.vendor.plugins.localnotification.LocalNotificationFunctions.CreateChannel",
+            "description": "Create a notification channel (Android 8+ required; no-op on iOS)"
+        }
+    ],
+    "events": [
+        "Vendor\\LocalNotification\\Events\\NotificationTapped",
+        "Vendor\\LocalNotification\\Events\\NotificationDismissed",
+        "Vendor\\LocalNotification\\Events\\NotificationPermissionChanged"
+    ],
+    "android": {
+        "permissions": [
+            "android.permission.POST_NOTIFICATIONS",
+            "android.permission.VIBRATE",
+            "android.permission.RECEIVE_BOOT_COMPLETED"
+        ],
+        "min_version": 26,
+        "receivers": [
+            {
+                "name": "com.vendor.plugins.localnotification.NotificationActionReceiver",
+                "exported": false,
+                "intent_filters": [
+                    {
+                        "actions": [
+                            "com.vendor.plugins.localnotification.ACTION_TAP",
+                            "com.vendor.plugins.localnotification.ACTION_DISMISS"
+                        ]
+                    }
+                ]
+            }
+        ],
+        "dependencies": {
+            "implementation": [
+                "androidx.core:core-ktx:1.12.0"
+            ]
+        }
+    },
+    "ios": {
+        "info_plist": {
+            "NSUserNotificationsUsageDescription": "This app uses notifications to alert you about new messages and important updates."
+        },
+        "background_modes": [
+            "remote-notification"
+        ]
+    }
+}

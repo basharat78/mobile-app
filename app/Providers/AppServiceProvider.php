@@ -53,5 +53,32 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
         }
+
+        // 3. Setup Local Notification Channels (Android 8+)
+        if (class_exists(\Vendor\LocalNotification\Facades\LocalNotification::class)) {
+            try {
+                \Vendor\LocalNotification\Facades\LocalNotification::createChannel(
+                    id: 'loads',
+                    name: 'New Loads',
+                    importance: 'high',
+                    description: 'Alerts for new available freight',
+                    sound: true,
+                    vibration: true,
+                    lights: true
+                );
+
+                \Vendor\LocalNotification\Facades\LocalNotification::createChannel(
+                    id: 'status_updates',
+                    name: 'Status Updates',
+                    importance: 'high',
+                    description: 'Alerts for bid and account status changes',
+                    sound: true,
+                    vibration: true,
+                    lights: true
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Notification Channel setup failed', ['error' => $e->getMessage()]);
+            }
+        }
     }
 }

@@ -1,0 +1,35 @@
+{
+    "name": "vendor/nativephp-local-notification",
+    "description": "WhatsApp-style local notifications with sound for NativePHP Mobile (iOS & Android)",
+    "type": "nativephp-plugin",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Your Name",
+            "email": "you@example.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Vendor\\LocalNotification\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Vendor\\LocalNotification\\LocalNotificationServiceProvider"
+            ],
+            "aliases": {
+                "LocalNotification": "Vendor\\LocalNotification\\Facades\\LocalNotification"
+            }
+        },
+        "nativephp": {
+            "manifest": "nativephp.json"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

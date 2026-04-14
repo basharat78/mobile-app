@@ -12,6 +12,26 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount()
     {
         $this->syncDashboard();
+
+        // 4. Request Notification Permission (if plugin exists)
+        if (class_exists(\Vendor\LocalNotification\Facades\LocalNotification::class)) {
+            $status = \Vendor\LocalNotification\Facades\LocalNotification::checkPermission();
+            if (!$status['granted']) {
+                \Vendor\LocalNotification\Facades\LocalNotification::requestPermission();
+            }
+        }
+    }
+
+    public function testNotification()
+    {
+        if (class_exists(\Vendor\LocalNotification\Facades\LocalNotification::class)) {
+            \Illuminate\Support\Facades\Log::info('Triggering manual Test Notification');
+            \Vendor\LocalNotification\Facades\LocalNotification::show(
+                "Test Alert", 
+                "If you see this, the notification system is working!",
+                ['channelId' => 'status_updates', 'badge' => 1]
+            );
+        }
     }
 
     public function syncDashboard()
@@ -46,7 +66,17 @@ new #[Layout('components.layouts.app')] class extends Component
                 if ($remoteStatusResponse->successful()) {
                     $remoteStatusData = $remoteStatusResponse->json();
                     if (isset($remoteStatusData['status']) && $remoteStatusData['status'] !== $carrier->status) {
-                        $carrier->update(['status' => $remoteStatusData['status']]);
+                        $newStatus = $remoteStatusData['status'];
+                        $statusText = strtoupper($newStatus);
+                        
+                        \Illuminate\Support\Facades\Log::info("Triggering Account {$statusText} Notification");
+                        \Vendor\LocalNotification\Facades\LocalNotification::show(
+                            "Account {$statusText}", 
+                            "Your carrier account has been {$newStatus} by the dispatch team.",
+                            ['channelId' => 'status_updates', 'badge' => 1]
+                        );
+
+                        $carrier->update(['status' => $newStatus]);
                     }
                 }
             }
@@ -104,7 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.30s="syncDashboard">
+<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncDashboard">
     @php $s = $this->stats; @endphp
     
     @if(!$s['isApproved'])

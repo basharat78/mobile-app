@@ -12,6 +12,26 @@ new #[Layout('components.layouts.app')] class extends Component
     public function mount()
     {
         $this->syncDashboard();
+
+        // 4. Request Notification Permission (if plugin exists)
+        if (class_exists(\Vendor\LocalNotification\Facades\LocalNotification::class)) {
+            $status = \Vendor\LocalNotification\Facades\LocalNotification::checkPermission();
+            if (!$status['granted']) {
+                \Vendor\LocalNotification\Facades\LocalNotification::requestPermission();
+            }
+        }
+    }
+
+    public function testNotification()
+    {
+        if (class_exists(\Vendor\LocalNotification\Facades\LocalNotification::class)) {
+            \Illuminate\Support\Facades\Log::info('Triggering manual Test Notification');
+            \Vendor\LocalNotification\Facades\LocalNotification::show(
+                "Test Alert", 
+                "If you see this, the notification system is working!",
+                ['channelId' => 'status_updates', 'badge' => 1]
+            );
+        }
     }
 
     public function syncDashboard()
@@ -46,7 +66,17 @@ new #[Layout('components.layouts.app')] class extends Component
                 if ($remoteStatusResponse->successful()) {
                     $remoteStatusData = $remoteStatusResponse->json();
                     if (isset($remoteStatusData['status']) && $remoteStatusData['status'] !== $carrier->status) {
-                        $carrier->update(['status' => $remoteStatusData['status']]);
+                        $newStatus = $remoteStatusData['status'];
+                        $statusText = strtoupper($newStatus);
+                        
+                        \Illuminate\Support\Facades\Log::info("Triggering Account {$statusText} Notification");
+                        \Vendor\LocalNotification\Facades\LocalNotification::show(
+                            "Account {$statusText}", 
+                            "Your carrier account has been {$newStatus} by the dispatch team.",
+                            ['channelId' => 'status_updates', 'badge' => 1]
+                        );
+
+                        $carrier->update(['status' => $newStatus]);
                     }
                 }
             }
@@ -168,6 +198,11 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="space-y-1">
                 <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Truck Zap</h1>
                 <p class="text-slate-400 font-medium">Welcome back, <span class="text-blue-400">{{ explode(' ', Auth::user()->name)[0] }}</span>!</p>
+                
+                <!-- HYPER-VISIBLE TEST BUTTON -->
+                <button wire:click="testNotification" class="mt-2 px-2 py-0.5 bg-red-600 text-white text-[8px] font-black uppercase rounded shadow-lg animate-pulse border border-red-400">
+                    TAP HERE TO TEST NOTIFICATIONS
+                </button>
             </div>
             <div class="relative group">
                 <div class="w-14 h-14 bg-blue-gradient rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40 text-white font-black italic transition-transform group-hover:scale-110 group-hover:rotate-3 duration-500">

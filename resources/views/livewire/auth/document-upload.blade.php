@@ -39,6 +39,21 @@ new #[Layout('components.layouts.app')] class extends Component
                 // Sync document statuses from cloud to local DB
                 if (!empty($data['documents'])) {
                     foreach ($data['documents'] as $remoteDoc) {
+                        $localDoc = \App\Models\CarrierDocument::where('carrier_id', $carrier->id)->where('type', $remoteDoc['type'])->first();
+
+                        // Notify if status CHANGED
+                        if ($localDoc && $localDoc->status !== $remoteDoc['status']) {
+                            $docName = ucfirst(str_replace('_', ' ', $remoteDoc['type']));
+                            $statusText = strtoupper($remoteDoc['status']);
+                            \Illuminate\Support\Facades\Log::info("Triggering Document {$statusText} Notification", ['type' => $remoteDoc['type']]);
+                            \Vendor\LocalNotification\Facades\LocalNotification::show(
+                                "Document {$statusText}", 
+                                "Your {$docName} has been {$remoteDoc['status']}.",
+                                ['channelId' => 'status_updates', 'badge' => 1]
+                            );
+                        }
+
+
                         \App\Models\CarrierDocument::updateOrCreate(
                             ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
                             ['status' => $remoteDoc['status']]
@@ -176,7 +191,7 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="px-6 py-12 space-y-10 relative z-10">
+<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncDocStatuses">
     <div class="w-full max-w-md mx-auto space-y-10">
         <div class="space-y-2">
             <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none text-center">Fleet Docs</h1>

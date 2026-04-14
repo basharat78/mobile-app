@@ -64,9 +64,35 @@ new #[Layout('components.layouts.app')] class extends Component
                         ]
                     );
 
+                    // Notify on New Load (only if truly new and active)
+                    if ($load->wasRecentlyCreated && $load->status === 'active') {
+                        \Illuminate\Support\Facades\Log::info('Triggering New Load Notification', ['id' => $load->id]);
+                        \Vendor\LocalNotification\Facades\LocalNotification::show(
+                            'New Load Available!', 
+                            "From {$load->pickup_location} to {$load->drop_location} - ${$load->rate}",
+                            ['channelId' => 'loads', 'data' => ['load_id' => $load->id]]
+                        );
+                    }
+
                     // Sync Bid status from server
                     if (isset($l['requests']) && count($l['requests']) > 0) {
                         $remoteReq = $l['requests'][0];
+                        $localReq = \App\Models\LoadRequest::where('load_id', $load->id)->where('carrier_id', $user->carrier->id)->first();
+                        
+                        // Notify if status CHANGED or if first time seeing a non-pending status
+                        $statusChanged = $localReq && $localReq->status !== $remoteReq['status'];
+                        $firstStatus = !$localReq && $remoteReq['status'] !== 'pending';
+
+                        if ($statusChanged || $firstStatus) {
+                            $statusText = strtoupper($remoteReq['status']);
+                            \Illuminate\Support\Facades\Log::info("Triggering Bid {$statusText} Notification", ['load_id' => $load->id]);
+                            \Vendor\LocalNotification\Facades\LocalNotification::show(
+                                "Bid {$statusText}", 
+                                "Your bid for the load from {$load->pickup_location} has been {$remoteReq['status']}.",
+                                ['channelId' => 'status_updates', 'badge' => 1]
+                            );
+                        }
+
                         \App\Models\LoadRequest::updateOrCreate(
                             ['load_id' => $load->id, 'carrier_id' => $user->carrier->id],
                             ['status' => $remoteReq['status']]

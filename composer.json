@@ -15,8 +15,15 @@
         "nativephp/mobile": "^3.0",
         "nativephp/mobile-camera": "^1.0",
         "nativephp/mobile-device": "^1.0",
-        "nativephp/mobile-system": "^1.0"
+        "nativephp/mobile-system": "^1.0",
+        "vendor/nativephp-local-notification": "dev-main"
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/notification-plugin"
+        }
+    ],
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.5",

@@ -11,6 +11,7 @@ class CarrierDocument extends Model
         'type',
         'file_path',
         'status',
+        'is_notified',
     ];
     public function carrier()
     {

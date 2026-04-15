@@ -1,12 +1,12 @@
 {
-    "name": "vendor/nativephp-local-notification",
+    "name": "basharat78/nativephp-local-notification",
     "description": "WhatsApp-style local notifications with sound for NativePHP Mobile (iOS & Android)",
     "type": "nativephp-plugin",
     "license": "MIT",
     "authors": [
         {
-            "name": "Your Name",
-            "email": "you@example.com"
+            "name": "Basharat",
+            "email": "mbasharat596@gmail.com"
         }
     ],
     "require": {

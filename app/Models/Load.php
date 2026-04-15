@@ -24,6 +24,7 @@ class Load extends Model
         'weight',
         'broker_name',
         'status',
+        'is_notified',
     ];
 
     public function dispatcher()

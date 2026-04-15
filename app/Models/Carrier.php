@@ -16,6 +16,8 @@ class Carrier extends Model
         'min_rate',
         'signature_path',
         'dispatcher_id',
+        'background_sync_enabled',
+        'is_notified',
     ];
 
     public function managedCarriers()

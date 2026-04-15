@@ -8,9 +8,11 @@ use App\Models\Load;
 new #[Layout('components.layouts.app')] class extends Component
 {
     public $isSyncing = false;
+    public $isBackgroundMonitoring = false;
 
     public function mount()
     {
+        $this->isBackgroundMonitoring = Auth::user()->carrier->background_sync_enabled;
         $this->syncDashboard();
 
         // 4. Request Notification Permission (if plugin exists)
@@ -19,6 +21,17 @@ new #[Layout('components.layouts.app')] class extends Component
             if (!$status['granted']) {
                 \Vendor\LocalNotification\Facades\LocalNotification::requestPermission();
             }
+        }
+    }
+
+    public function updatedIsBackgroundMonitoring($value)
+    {
+        Auth::user()->carrier->update(['background_sync_enabled' => $value]);
+
+        if ($value) {
+            $this->js("window.Native.call('Notification.StartBackgroundSync', { email: '" . Auth::user()->email . "' }).then(r => console.log('Sync Started', r))");
+        } else {
+            $this->js("window.Native.call('Notification.StopBackgroundSync').then(r => console.log('Sync Stopped', r))");
         }
     }
 
@@ -61,27 +74,115 @@ new #[Layout('components.layouts.app')] class extends Component
 
             // 2. Sync Status from Cloud
             if ($carrier->remote_id) {
+                // [A] Account Status
                 $statusUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/status/' . $user->email;
                 $remoteStatusResponse = \Illuminate\Support\Facades\Http::timeout(5)->get($statusUrl);
                 if ($remoteStatusResponse->successful()) {
                     $remoteStatusData = $remoteStatusResponse->json();
-                    if (isset($remoteStatusData['status']) && $remoteStatusData['status'] !== $carrier->status) {
+                    if (isset($remoteStatusData['status'])) {
                         $newStatus = $remoteStatusData['status'];
-                        $statusText = strtoupper($newStatus);
-                        
-                        \Illuminate\Support\Facades\Log::info("Triggering Account {$statusText} Notification");
-                        \Vendor\LocalNotification\Facades\LocalNotification::show(
-                            "Account {$statusText}", 
-                            "Your carrier account has been {$newStatus} by the dispatch team.",
-                            ['channelId' => 'status_updates', 'badge' => 1]
-                        );
+                        $isFinalStatus = in_array($newStatus, ['approved', 'rejected']);
+                        $statusChanged = ($newStatus !== $carrier->status);
 
-                        $carrier->update(['status' => $newStatus]);
+                        if ($isFinalStatus && ($statusChanged || !$carrier->is_notified)) {
+                            $statusText = strtoupper($newStatus);
+                            \Vendor\LocalNotification\Facades\LocalNotification::show(
+                                "🏢 Account {$statusText}", 
+                                "Your carrier account has been {$newStatus} by the dispatch team.",
+                                ['channelId' => 'status_updates', 'badge' => 1]
+                            );
+                            $carrier->update(['status' => $newStatus, 'is_notified' => true]);
+                        } else if ($statusChanged) {
+                            $carrier->update(['status' => $newStatus]);
+                        }
+                    }
+
+                    // [A.2] Sync Document Statuses
+                        foreach ($remoteStatusData['documents'] as $remoteDoc) {
+                            $localDoc = \App\Models\CarrierDocument::updateOrCreate(
+                                ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
+                                ['status' => $remoteDoc['status']]
+                            );
+
+                            $isFinalStatus = in_array($localDoc->status, ['approved', 'rejected']);
+                            if ($isFinalStatus && !$localDoc->is_notified) {
+                                $docName = ucfirst(str_replace('_', ' ', $remoteDoc['type']));
+                                $statusText = strtoupper($localDoc->status);
+                                \Vendor\LocalNotification\Facades\LocalNotification::show(
+                                    "📄 Document {$statusText}", 
+                                    "Your {$docName} has been {$localDoc->status}.",
+                                    ['channelId' => 'status_updates', 'badge' => 1]
+                                );
+                                $localDoc->update(['is_notified' => true]);
+                            }
+                        }
+                }
+
+                // [B] Global Load Sync (Ensures "New Load" Notifications fire on Dashboard)
+                if ($carrier->status === 'approved') {
+                    $loadsUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/loads/' . $user->email;
+                    $loadsResponse = \Illuminate\Support\Facades\Http::timeout(10)->get($loadsUrl);
+                    if ($loadsResponse->successful()) {
+                        $remoteLoads = $loadsResponse->json()['loads'] ?? [];
+                        $syncedIds = [];
+                        foreach ($remoteLoads as $l) {
+                            $load = Load::updateOrCreate(
+                                ['id' => $l['id']],
+                                [
+                                    'dispatcher_id' => $l['dispatcher_id'],
+                                    'carrier_id' => $carrier->id, 
+                                    'pickup_location' => $l['pickup_location'],
+                                    'pickup_time' => $l['pickup_time'],
+                                    'drop_location' => $l['drop_location'],
+                                    'drop_off_time' => $l['drop_off_time'],
+                                    'miles' => $l['miles'],
+                                    'rate' => $l['rate'],
+                                    'equipment_type' => $l['equipment_type'],
+                                    'status' => $l['status'],
+                                    'notes' => $l['notes'],
+                                ]
+                            );
+
+                            if (!$load->is_notified && $load->status === 'available') {
+                                \Vendor\LocalNotification\Facades\LocalNotification::show(
+                                    'New Load Available!', 
+                                    "From {$load->pickup_location} to {$load->drop_location} - ${$load->rate}",
+                                    ['channelId' => 'loads']
+                                );
+                                $load->update(['is_notified' => true]);
+                            }
+
+                            // [B.2] Sync Bid Status for this load
+                            if (isset($l['requests']) && count($l['requests']) > 0) {
+                                $remoteReq = $l['requests'][0];
+                                $localReq = \App\Models\LoadRequest::updateOrCreate(
+                                    ['load_id' => $load->id, 'carrier_id' => $carrier->id],
+                                    ['status' => $remoteReq['status']]
+                                );
+
+                                $isFinalStatus = in_array($localReq->status, ['approved', 'rejected']);
+                                if ($isFinalStatus && !$localReq->is_notified) {
+                                    $statusText = strtoupper($localReq->status);
+                                    \Vendor\LocalNotification\Facades\LocalNotification::show(
+                                        "🎯 Bid {$statusText}", 
+                                        "Your bid for the load from {$load->pickup_location} has been {$localReq->status}.",
+                                        ['channelId' => 'status_updates']
+                                    );
+                                    $localReq->update(['is_notified' => true]);
+                                }
+                            }
+
+                            $syncedIds[] = $load->id;
+                        }
+
+                        // Removed aggressive local cleanup so we don't accidentally delete ongoing loads
+                        // Load::where('carrier_id', $carrier->id)->whereNotIn('id', $syncedIds)->delete();
+                        // \App\Models\LoadRequest::whereDoesntHave('loadJob')->delete();
                     }
                 }
             }
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Dashboard sync failed', ['error' => $e->getMessage()]);
+            \Illuminate\Support\Facades\Log::warning('Dashboard global sync failed', ['error' => $e->getMessage()]);
         }
 
         $this->isSyncing = false;
@@ -98,9 +199,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
         return [
             'isApproved' => $isApproved,
-            'activeLoadsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'approved')->count() : 0,
-            'pendingRequestsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'pending')->count() : 0,
-            'requestLoadsCount' => Load::where('carrier_id', $carrier->id)->count(), // All available for them
+            'activeLoadsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'approved')->whereHas('loadJob')->count() : 0,
+            'pendingRequestsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'pending')->whereHas('loadJob')->count() : 0,
+            'requestLoadsCount' => Load::where('carrier_id', $carrier->id)->count(),
             'status' => ucfirst($carrier->status),
             'initials' => collect(explode(' ', $user->name ?? ''))->filter()->map(fn($n) => substr($n, 0, 1))->take(2)->join('') ?: 'U',
             'recentUpdates' => $this->getRecentUpdates($carrier, $isApproved),
@@ -119,7 +220,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     'time' => $doc->updated_at,
                 ]);
             }
-            foreach($carrier->loadRequests()->with('loadJob')->latest()->take(3)->get() as $request) {
+            foreach($carrier->loadRequests()->whereHas('loadJob')->with('loadJob')->latest()->take(3)->get() as $request) {
                 $recentUpdates->push([
                     'title' => 'Load Request ' . ucfirst($request->status),
                     'description' => "For " . ($request->loadJob?->pickup_location ?? 'Unknown Load'),
@@ -303,6 +404,36 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 @endforelse
             </div>
+        </div>
+
+        <!-- System Settings -->
+        <div class="space-y-6 animate-fadeIn" style="animation-delay: 300ms">
+            <div class="flex items-center justify-between px-2">
+                <h3 class="text-xl font-black text-white italic">Settings</h3>
+            </div>
+            
+            <div class="p-6 glass-morphism border border-white/5 rounded-[2.5rem] flex items-center justify-between shadow-2xl transition-all group hover:border-blue-500/30">
+                <div class="flex items-center gap-5">
+                    <div class="w-12 h-12 bg-slate-800/50 rounded-2xl flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-blue-400">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                        </svg>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-white font-black italic uppercase tracking-tight">Background Sync</span>
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Instant alerts even if app is closed</span>
+                    </div>
+                </div>
+                
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" wire:model.live="isBackgroundMonitoring" class="sr-only peer">
+                    <div class="w-14 h-8 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:start-[4px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600 peer-checked:after:bg-white"></div>
+                </label>
+            </div>
+
+            <p class="text-center text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] px-10">
+                Enabled: keeps app heartbeat alive for 24/7 freight monitoring. Increased battery usage may occur.
+            </p>
         </div>
     @endif
 </div>

@@ -10,6 +10,7 @@ class LoadRequest extends Model
         'load_id',
         'carrier_id',
         'status',
+        'is_notified',
     ];
 
     public function loadJob()

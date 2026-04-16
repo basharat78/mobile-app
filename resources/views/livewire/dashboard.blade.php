@@ -49,142 +49,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function syncDashboard()
     {
-        $user = Auth::user();
-        $carrier = $user->carrier;
-        
-        if (!$carrier) return;
-
-        $this->isSyncing = true;
-
-        try {
-            // 1. Sync Remote ID if missing
-            if (!$carrier->remote_id) {
-                $lookupUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/lookup';
-                $lookupResponse = \Illuminate\Support\Facades\Http::timeout(5)->post($lookupUrl, ['email' => $user->email]);
-                if ($lookupResponse->successful()) {
-                    $lookupData = $lookupResponse->json();
-                    if (isset($lookupData['carrier_id'])) {
-                        $carrier->update([
-                            'remote_id' => $lookupData['carrier_id'],
-                            'status' => $lookupData['status'] ?? $carrier->status
-                        ]);
-                    }
-                }
-            }
-
-            // 2. Sync Status from Cloud
-            if ($carrier->remote_id) {
-                // [A] Account Status
-                $statusUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/status/' . $user->email;
-                $remoteStatusResponse = \Illuminate\Support\Facades\Http::timeout(5)->get($statusUrl);
-                if ($remoteStatusResponse->successful()) {
-                    $remoteStatusData = $remoteStatusResponse->json();
-                    if (isset($remoteStatusData['status'])) {
-                        $newStatus = $remoteStatusData['status'];
-                        $isFinalStatus = in_array($newStatus, ['approved', 'rejected']);
-                        $statusChanged = ($newStatus !== $carrier->status);
-
-                        if ($isFinalStatus && ($statusChanged || !$carrier->is_notified)) {
-                            $statusText = strtoupper($newStatus);
-                            \Vendor\LocalNotification\Facades\LocalNotification::show(
-                                "🏢 Account {$statusText}", 
-                                "Your carrier account has been {$newStatus} by the dispatch team.",
-                                ['channelId' => 'status_updates', 'badge' => 1]
-                            );
-                            $carrier->update(['status' => $newStatus, 'is_notified' => true]);
-                        } else if ($statusChanged) {
-                            $carrier->update(['status' => $newStatus]);
-                        }
-                    }
-
-                    // [A.2] Sync Document Statuses
-                        foreach ($remoteStatusData['documents'] as $remoteDoc) {
-                            $localDoc = \App\Models\CarrierDocument::updateOrCreate(
-                                ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
-                                ['status' => $remoteDoc['status']]
-                            );
-
-                            $isFinalStatus = in_array($localDoc->status, ['approved', 'rejected']);
-                            if ($isFinalStatus && !$localDoc->is_notified) {
-                                $docName = ucfirst(str_replace('_', ' ', $remoteDoc['type']));
-                                $statusText = strtoupper($localDoc->status);
-                                \Vendor\LocalNotification\Facades\LocalNotification::show(
-                                    "📄 Document {$statusText}", 
-                                    "Your {$docName} has been {$localDoc->status}.",
-                                    ['channelId' => 'status_updates', 'badge' => 1]
-                                );
-                                $localDoc->update(['is_notified' => true]);
-                            }
-                        }
-                }
-
-                // [B] Global Load Sync (Ensures "New Load" Notifications fire on Dashboard)
-                if ($carrier->status === 'approved') {
-                    $loadsUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/loads/' . $user->email;
-                    $loadsResponse = \Illuminate\Support\Facades\Http::timeout(10)->get($loadsUrl);
-                    if ($loadsResponse->successful()) {
-                        $remoteLoads = $loadsResponse->json()['loads'] ?? [];
-                        $syncedIds = [];
-                        foreach ($remoteLoads as $l) {
-                            $load = Load::updateOrCreate(
-                                ['id' => $l['id']],
-                                [
-                                    'dispatcher_id' => $l['dispatcher_id'],
-                                    'carrier_id' => $carrier->id, 
-                                    'pickup_location' => $l['pickup_location'],
-                                    'pickup_time' => $l['pickup_time'],
-                                    'drop_location' => $l['drop_location'],
-                                    'drop_off_time' => $l['drop_off_time'],
-                                    'miles' => $l['miles'],
-                                    'rate' => $l['rate'],
-                                    'equipment_type' => $l['equipment_type'],
-                                    'status' => $l['status'],
-                                    'notes' => $l['notes'],
-                                ]
-                            );
-
-                            if (!$load->is_notified && $load->status === 'available') {
-                                \Vendor\LocalNotification\Facades\LocalNotification::show(
-                                    'New Load Available!', 
-                                    "From {$load->pickup_location} to {$load->drop_location} - ${$load->rate}",
-                                    ['channelId' => 'loads']
-                                );
-                                $load->update(['is_notified' => true]);
-                            }
-
-                            // [B.2] Sync Bid Status for this load
-                            if (isset($l['requests']) && count($l['requests']) > 0) {
-                                $remoteReq = $l['requests'][0];
-                                $localReq = \App\Models\LoadRequest::updateOrCreate(
-                                    ['load_id' => $load->id, 'carrier_id' => $carrier->id],
-                                    ['status' => $remoteReq['status']]
-                                );
-
-                                $isFinalStatus = in_array($localReq->status, ['approved', 'rejected']);
-                                if ($isFinalStatus && !$localReq->is_notified) {
-                                    $statusText = strtoupper($localReq->status);
-                                    \Vendor\LocalNotification\Facades\LocalNotification::show(
-                                        "🎯 Bid {$statusText}", 
-                                        "Your bid for the load from {$load->pickup_location} has been {$localReq->status}.",
-                                        ['channelId' => 'status_updates']
-                                    );
-                                    $localReq->update(['is_notified' => true]);
-                                }
-                            }
-
-                            $syncedIds[] = $load->id;
-                        }
-
-                        // Removed aggressive local cleanup so we don't accidentally delete ongoing loads
-                        // Load::where('carrier_id', $carrier->id)->whereNotIn('id', $syncedIds)->delete();
-                        // \App\Models\LoadRequest::whereDoesntHave('loadJob')->delete();
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Dashboard global sync failed', ['error' => $e->getMessage()]);
-        }
-
+        // Global Watchtower handles syncing. Foreground UI just refreshes data.
         $this->isSyncing = false;
     }
 
@@ -434,6 +299,28 @@ new #[Layout('components.layouts.app')] class extends Component
             <p class="text-center text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] px-10">
                 Enabled: keeps app heartbeat alive for 24/7 freight monitoring. Increased battery usage may occur.
             </p>
+
+            <!-- DIAGNOSTIC TOOLS -->
+            <div x-data="{ localSyncing: false }" class="mt-8 space-y-4">
+                <div class="px-2">
+                    <h3 class="text-xs font-black text-slate-500 italic uppercase tracking-widest">Test Service</h3>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button wire:click="testNotification" class="p-5 glass-morphism border border-white/5 rounded-2xl flex flex-col items-center gap-3 active:scale-95 transition-all text-blue-400 hover:border-blue-500/20 group">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 group-hover:animate-bounce">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                        </svg>
+                        <span class="text-[9px] font-black uppercase tracking-widest leading-none">Test Notification</span>
+                    </button>
+
+                    <button @click="localSyncing = true; $wire.syncDashboard().then(() => localSyncing = false)" :disabled="localSyncing" class="p-5 glass-morphism border border-white/5 rounded-2xl flex flex-col items-center gap-3 active:scale-95 transition-all text-purple-400 hover:border-purple-500/20 group disabled:opacity-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" :class="{ 'animate-spin': localSyncing }">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                        </svg>
+                        <span class="text-[9px] font-black uppercase tracking-widest leading-none">Emergency Sync</span>
+                    </button>
+                </div>
+            </div>
         </div>
     @endif
 </div>

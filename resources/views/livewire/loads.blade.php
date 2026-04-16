@@ -13,6 +13,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public $activeLoadNotes = null;
     public $isApproved = false;
     public $processingLoadId = null; // Immediately locks button on click
+    public $lastSyncInfo = 'Never synced';
+    public $syncColor = 'text-slate-500';
 
     public function mount()
     {
@@ -25,92 +27,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function syncLoads()
     {
-        // Don't sync if search is active (prevent UI jitter)
-        if ($this->search) return;
-
-        $this->isSyncing = true;
-        $user = Auth::user();
-        
-        try {
-            $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/loads/' . $user->email;
-            $response = \Illuminate\Support\Facades\Http::timeout(10)->get($apiUrl);
-            
-            if ($response->successful()) {
-                $remoteLoads = $response->json()['loads'] ?? [];
-                
-                // Track synced IDs to delete those no longer available (Ghost Load Cleanup)
-                $syncedIds = [];
-                
-                foreach ($remoteLoads as $l) {
-                    $load = Load::updateOrCreate(
-                        ['id' => $l['id']],
-                        [
-                            'dispatcher_id' => $l['dispatcher_id'],
-                            'carrier_id' => $user->carrier->id, 
-                            'pickup_location' => $l['pickup_location'],
-                            'pickup_time' => $l['pickup_time'],
-                            'drop_location' => $l['drop_location'],
-                            'drop_off_time' => $l['drop_off_time'],
-                            'miles' => $l['miles'],
-                            'rate' => $l['rate'],
-                            'deadhead' => $l['deadhead'] ?? 0,
-                            'total_miles' => $l['total_miles'] ?? $l['miles'],
-                            'rpm' => $l['rpm'] ?? 0,
-                            'equipment_type' => $l['equipment_type'],
-                            'weight' => $l['weight'] ?? 0,
-                            'broker_name' => $l['broker_name'] ?? 'Direct',
-                            'notes' => $l['notes'],
-                            'status' => $l['status'],
-                        ]
-                    );
-
-                    // Notify on New Load (only if truly new and available)
-                    if (!$load->is_notified && $load->status === 'available') {
-                        \Illuminate\Support\Facades\Log::info('Triggering New Load Notification', ['id' => $load->id]);
-                        \Vendor\LocalNotification\Facades\LocalNotification::show(
-                            'New Load Available!', 
-                            "From {$load->pickup_location} to {$load->drop_location} - ${$load->rate}",
-                            ['channelId' => 'loads', 'data' => ['load_id' => $load->id]]
-                        );
-                        $load->update(['is_notified' => true]);
-                    }
-
-                    // Sync Bid status from server
-                    if (isset($l['requests']) && count($l['requests']) > 0) {
-                        $remoteReq = $l['requests'][0];
-                        $localReq = \App\Models\LoadRequest::updateOrCreate(
-                            ['load_id' => $load->id, 'carrier_id' => $user->carrier->id],
-                            ['status' => $remoteReq['status']]
-                        );
-
-                        // Only notify if status is approved/rejected AND we haven't notified for this specific one yet
-                        $isFinalStatus = in_array($localReq->status, ['approved', 'rejected']);
-                        if ($isFinalStatus && !$localReq->is_notified) {
-                            $statusText = strtoupper($localReq->status);
-                            \Vendor\LocalNotification\Facades\LocalNotification::show(
-                                "🎯 Bid {$statusText}", 
-                                "Your bid for the load from {$load->pickup_location} has been {$localReq->status}.",
-                                ['channelId' => 'status_updates', 'badge' => 1]
-                            );
-                            $localReq->update(['is_notified' => true]);
-                        }
-                    }
-
-                    $syncedIds[] = $load->id;
-                }
-
-                // Delete local loads that are NOT in the remote IDs
-                Load::where('carrier_id', $user->carrier->id)
-                    ->whereNotIn('id', $syncedIds)
-                    ->delete();
-
-                // Clean up orphaned requests (Ghost Load Cleanup)
-                \App\Models\LoadRequest::whereDoesntHave('loadJob')->delete();
-            }
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Load sync failed', ['error' => $e->getMessage()]);
-        }
-        
+        // Global Watchtower handles syncing. Foreground UI just refreshes data.
         $this->isSyncing = false;
     }
 
@@ -386,7 +303,17 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             @endforelse
         </div>
-    </div>
+
+        <!-- SYNC INTEL FOOTER -->
+        <div class="pt-10 pb-20 border-t border-white/5 text-center space-y-2">
+            <div class="flex items-center justify-center gap-2">
+                <span class="w-1 h-1 rounded-full animate-pulse bg-current {{ $syncColor }}"></span>
+                <p class="text-[9px] font-black uppercase tracking-[0.2em] {{ $syncColor }}">{{ $lastSyncInfo }}</p>
+            </div>
+            <p class="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Global Marketplace Monitor v71</p>
+        </div>
+    @endif
+</div>
 
     <!-- Notes Modal -->
     @if($activeLoadNotes !== null)
@@ -417,5 +344,4 @@ new #[Layout('components.layouts.app')] class extends Component
         </div>
     @endif
 
-    @endif
 </div>

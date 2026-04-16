@@ -80,5 +80,6 @@ class AppServiceProvider extends ServiceProvider
                 \Illuminate\Support\Facades\Log::warning('Notification Channel setup failed', ['error' => $e->getMessage()]);
             }
         }
+        // Observers removed in v71 in favor of direct service calls for higher reliability
     }
 }

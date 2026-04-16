@@ -9,6 +9,8 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     public $isSyncing = false;
     public $isBackgroundMonitoring = false;
+    public $syncLogs = [];
+    public $showLogs = false;
 
     public function mount()
     {
@@ -49,8 +51,28 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function syncDashboard()
     {
-        // Global Watchtower handles syncing. Foreground UI just refreshes data.
+        $this->isSyncing = true;
+        \App\Services\SyncService::performGlobalSync(Auth::user());
         $this->isSyncing = false;
+        
+        // Auto-refresh logs if they are open
+        if ($this->showLogs) {
+            $this->viewSyncLogs();
+        }
+    }
+
+    public function viewSyncLogs()
+    {
+        $this->showLogs = true;
+        $path = storage_path('app/logs/sync_pulse.log');
+        
+        if (file_exists($path)) {
+            $content = file($path);
+            // Show last 30 pulses
+            $this->syncLogs = array_reverse(array_slice($content, -30));
+        } else {
+            $this->syncLogs = ['No pulses recorded yet. Wait for a sync attempt.'];
+        }
     }
 
     public function getStatsProperty()
@@ -158,7 +180,14 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="flex items-start justify-between animate-fadeIn">
             <div class="space-y-1">
                 <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Truck Zap</h1>
-                <p class="text-slate-400 font-medium">Welcome back, <span class="text-blue-400">{{ explode(' ', Auth::user()->name)[0] }}</span>!</p>
+                <div class="flex items-center gap-2">
+                    <p class="text-slate-400 font-medium">Welcome, <span class="text-blue-400">{{ explode(' ', Auth::user()->name)[0] }}</span></p>
+                    <button wire:click="viewSyncLogs" class="p-1.5 bg-white/5 rounded-lg border border-white/10 hover:bg-blue-500/10 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3 text-blue-400">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="relative group">
                 <div class="w-14 h-14 bg-blue-gradient rounded-[1.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/40 text-white font-black italic transition-transform group-hover:scale-110 group-hover:rotate-3 duration-500">
@@ -166,6 +195,22 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             </div>
         </div>
+
+        @if($showLogs)
+            <div class="p-6 glass-morphism border border-blue-500/20 rounded-3xl animate-fadeIn">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-blue-400 italic">Sync Pulse Log</h3>
+                    <button wire:click="$set('showLogs', false)" class="text-slate-500 hover:text-white">&times;</button>
+                </div>
+                <div class="max-h-48 overflow-y-auto space-y-2 no-scrollbar font-mono text-[9px]">
+                    @foreach($syncLogs as $log)
+                        <div class="p-2 bg-white/5 rounded-lg border border-white/5 {{ str_contains($log, 'SUCCESS') ? 'text-green-400' : (str_contains($log, 'FAILED') ? 'text-red-400' : 'text-slate-400') }}">
+                            {{ $log }}
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
 
         <!-- Status Card -->
         <div class="p-10 bg-royal-gradient rounded-[3rem] relative overflow-hidden group shadow-[0_20px_50px_rgba(30,58,138,0.4)] animate-fadeIn">

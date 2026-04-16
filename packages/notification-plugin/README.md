@@ -23,14 +23,14 @@ WhatsApp-style local notifications with sound, badge, and tap handling for **Nat
 ### 1. Require the package
 
 ```bash
-composer require vendor/nativephp-local-notification
+composer require basharat78/nativephp-local-notification
 ```
 
 ### 2. Register the plugin
 
 ```bash
 php artisan vendor:publish --tag=nativephp-plugins-provider   # first time only
-php artisan native:plugin:register vendor/nativephp-local-notification
+php artisan native:plugin:register basharat78/nativephp-local-notification
 ```
 
 ### 3. Rebuild native projects
@@ -47,7 +47,7 @@ php artisan native:run android   # or ios
 ### Show a notification
 
 ```php
-use Vendor\LocalNotification\Facades\LocalNotification;
+use Basharat78\LocalNotification\Facades\LocalNotification;
 
 // Simple
 LocalNotification::show('New Message', 'Hey, how are you?');
@@ -108,9 +108,9 @@ LocalNotification::createChannel(
 Register listeners in `EventServiceProvider`:
 
 ```php
-use Vendor\LocalNotification\Events\NotificationTapped;
-use Vendor\LocalNotification\Events\NotificationDismissed;
-use Vendor\LocalNotification\Events\NotificationPermissionChanged;
+use Basharat78\LocalNotification\Events\NotificationTapped;
+use Basharat78\LocalNotification\Events\NotificationDismissed;
+use Basharat78\LocalNotification\Events\NotificationPermissionChanged;
 
 protected $listen = [
     NotificationTapped::class => [
@@ -213,5 +213,5 @@ The following `Info.plist` key is added automatically:
 ## Testing
 
 ```bash
-php artisan native:plugin:validate vendor/nativephp-local-notification
+php artisan native:plugin:validate basharat78/nativephp-local-notification
 ```

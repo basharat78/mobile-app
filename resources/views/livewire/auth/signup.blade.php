@@ -20,6 +20,9 @@ new #[Layout('components.layouts.app')] class extends Component
     public $terms = false;
     public $db_status = 'checking';
     public $debug_log = [];
+    public $isProcessing = false;
+    public $showSuccessModal = false;
+    public $lastCloudResponse = '';
 
     public function fetchLogs()
     {
@@ -59,36 +62,51 @@ new #[Layout('components.layouts.app')] class extends Component
                 'terms' => 'accepted',
             ]);
 
-            // 0. Cloud Duplicate Check (v42)
+            $this->isProcessing = true;
+            $this->lastCloudResponse = 'Phase 1: Cloud Verification Pulses...';
+
+            // Normalization (v82): Remove spaces/dashes
+            $cleanPhone = preg_replace('/[^0-9+]/', '', $this->phone);
+
+            // Pulse 1: SHADOW EMAIL (v83) - Always send both for server context
             try {
                 $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/lookup';
-                $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl, ['email' => $this->email]);
-                
-                if ($response->successful()) {
-                    session()->flash('error', 'Account already exists on our server. Please Login instead.');
+                $respEmail = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl, [
+                    'email' => $this->email,
+                    'phone' => $cleanPhone,
+                    'role' => $this->role
+                ]);
+                $this->lastCloudResponse = "Email Pulse: [" . $respEmail->status() . "] " . $respEmail->body();
+
+                if ($respEmail->status() === 409 || $respEmail->status() === 422 || (isset($respEmail->json()['email_match']) && $respEmail->json()['email_match'])) {
+                    session()->flash('error', 'THIS EMAIL IS ALREADY REGISTERED. Please login.');
+                    $this->isProcessing = false;
                     return;
                 }
-            } catch (\Exception $e) {
-                // Network error - continue local signup as fallback
-            }
+            } catch (\Exception $e) { /* Catch & Log */ }
 
-            // 1. Create user locally (for in-app auth/session)
-            $user = User::create([
-                'name' => $this->name,
-                'company_name' => $this->company_name,
-                'email' => $this->email,
-                'phone' => $this->phone,
-                'password' => Hash::make($this->password),
-                'role' => $this->role,
-            ]);
-
-            if ($this->role === 'carrier') {
-                $user->carrier()->create([
-                    'status' => 'pending',
+            // Pulse 2: SHADOW PHONE (v83) - Force isolated server check
+            try {
+                $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/lookup';
+                $respPhone = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl, [
+                    'check_phone' => true,
+                    'phone' => $cleanPhone,
+                    'email' => $this->email,
+                    'role' => $this->role
                 ]);
-            }
+                $this->lastCloudResponse .= "\nPhone Pulse: [" . $respPhone->status() . "] " . $respPhone->body();
 
-            // 2. Sync to remote Hostinger MySQL via API
+                if ($respPhone->status() === 409 || $respPhone->status() === 422 || (isset($respPhone->json()['phone_match']) && $respPhone->json()['phone_match'])) {
+                    session()->flash('error', 'THIS PHONE NUMBER IS ALREADY REGISTERED. Please login.');
+                    $this->isProcessing = false;
+                    return;
+                }
+            } catch (\Exception $e) { /* Catch & Log */ }
+
+            // --- CLOUD-FIRST REGISTRATION (v83) ---
+            $remoteId = null;
+            $this->lastCloudResponse .= "\nPhase 2: Attempting Cloud Sync...";
+
             try {
                 $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/register';
                 $response = \Illuminate\Support\Facades\Http::timeout(15)
@@ -103,29 +121,48 @@ new #[Layout('components.layouts.app')] class extends Component
 
                 if ($response->successful()) {
                     $remoteData = $response->json();
-                    \Illuminate\Support\Facades\Log::info('Remote sync SUCCESS', $remoteData);
-                    
-                    // Store the remote carrier ID locally for future syncing
-                    if ($this->role === 'carrier' && isset($remoteData['carrier_id'])) {
-                        $user->carrier()->update(['remote_id' => $remoteData['carrier_id']]);
-                    }
-                    
+                    $remoteId = $remoteData['carrier_id'] ?? null;
                     $this->db_status = 'synced';
+                    $this->lastCloudResponse .= "\nCloud Status: SUCCESS";
+                } elseif ($response->status() === 409 || $response->status() === 422) {
+                    $conflict = $response->json();
+                    session()->flash('error', $conflict['message'] ?? 'Identity Conflict during registration. Account already exists.');
+                    $this->isProcessing = false;
+                    return;
                 } else {
-                    \Illuminate\Support\Facades\Log::warning('Remote sync FAILED', [
-                        'status' => $response->status(),
-                        'body' => $response->body(),
-                    ]);
                     $this->db_status = 'local_only';
+                    $this->lastCloudResponse .= "\nCloud Status: OFFLINE (Local Fallback)";
                 }
             } catch (\Exception $syncError) {
-                \Illuminate\Support\Facades\Log::error('Remote sync ERROR', [
-                    'error' => $syncError->getMessage(),
-                ]);
                 $this->db_status = 'local_only';
+                $this->lastCloudResponse .= "\nCloud Status: ERROR (Local Fallback)";
+            }
+
+            // --- LOCAL DATA PERSISTENCE (Only if remote passed or offline fallback allowed) ---
+            // 1. Create user locally
+            $user = User::create([
+                'name' => $this->name,
+                'company_name' => $this->company_name,
+                'email' => $this->email,
+                'phone' => $this->phone,
+                'password' => Hash::make($this->password),
+                'role' => $this->role,
+            ]);
+
+            if ($this->role === 'carrier') {
+                $user->carrier()->create([
+                    'status' => 'pending',
+                    'remote_id' => $remoteId
+                ]);
             }
 
             \Illuminate\Support\Facades\Log::info('Signup successful', ['user_id' => $user->id]);
+
+            $this->showSuccessModal = true;
+            $this->isProcessing = false;
+
+            // Wait 2 seconds for the user to see the success pop alert (v80)
+            sleep(2); 
 
             Auth::login($user);
 
@@ -134,11 +171,16 @@ new #[Layout('components.layouts.app')] class extends Component
             }
 
             return redirect('/dispatcher/dashboard');
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            $this->isProcessing = false;
+            throw $ve;
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Signup failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            $this->isProcessing = false;
+            session()->flash('error', 'An unexpected error occurred. Please try again.');
             throw $e;
         }
     }
@@ -163,6 +205,21 @@ new #[Layout('components.layouts.app')] class extends Component
         <div class="p-10 space-y-10 bg-slate-800/20 border border-white/5 rounded-[3rem] shadow-2xl relative overflow-hidden">
             <div class="absolute -top-32 -right-32 w-64 h-64 bg-blue-600/5 rounded-full"></div>
             
+            <!-- v80 Visible Error Flash -->
+            @if (session()->has('error'))
+                <div class="relative z-20 mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3 animate-shake">
+                    <div class="w-8 h-8 rounded-xl bg-red-500/20 flex items-center justify-center text-red-500 shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-red-500 uppercase tracking-widest leading-none mb-1">Signup Blocked</p>
+                        <p class="text-[9px] font-bold text-red-300/80 uppercase tracking-tight">{{ session('error') }}</p>
+                    </div>
+                </div>
+            @endif
+
             <form wire:submit="signup" class="space-y-6 relative z-10">
                 <!-- Role Selection -->
                 <div class="p-1 bg-slate-900 border border-white/5 rounded-2xl flex items-center">
@@ -229,8 +286,8 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
 
                 <div class="pt-4">
-                    <button type="submit" wire:loading.attr="disabled" class="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-blue-500/40 hover:bg-blue-500 active:scale-[0.98] transition-all flex items-center justify-center gap-3">
-                        <span wire:loading.remove wire:target="signup">Create Account</span>
+                    <button type="submit" wire:loading.attr="disabled" class="w-full py-5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl shadow-blue-500/40 hover:bg-blue-500 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span wire:loading.remove wire:target="signup" x-show="!$wire.isProcessing">Create Account</span>
                         <span wire:loading wire:target="signup" class="flex items-center gap-2">
                              <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -238,6 +295,15 @@ new #[Layout('components.layouts.app')] class extends Component
                              </svg>
                              Processing...
                         </span>
+                        <template x-if="$wire.isProcessing">
+                            <span class="flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Securing Account...
+                            </span>
+                        </template>
                     </button>
                 </div>
             </form>
@@ -268,6 +334,45 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                     ">{{ strtoupper($db_status) }}</p>
                 </div>
+
+<!-- v80/v81 Pop Alerts (Modals) -->
+<div x-data="{ showProcessing: @entangle('isProcessing'), showSuccess: @entangle('showSuccessModal') }" 
+     class="relative z-[500]">
+    
+    <!-- Processing Modal -->
+    <template x-if="showProcessing && !showSuccess">
+        <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+            <div class="relative mb-8">
+                <div class="w-24 h-24 bg-blue-600/20 rounded-[2rem] flex items-center justify-center border border-blue-500/30">
+                    <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <div class="absolute -inset-4 bg-blue-500/10 blur-2xl rounded-full animate-pulse"></div>
+            </div>
+            <h2 class="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">Securing Account</h2>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Verifying identity and joining cloud network...</p>
+        </div>
+    </template>
+
+    <!-- Success Modal -->
+    <template x-if="showSuccess">
+        <div class="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl flex flex-col items-center justify-center p-10 text-center animate-bounce-in">
+            <div class="w-24 h-24 bg-green-500/20 rounded-[2rem] flex items-center justify-center border border-green-500/30 mb-8 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-10 h-10 text-green-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+            </div>
+            <h2 class="text-3xl font-black text-white italic uppercase tracking-tighter mb-2">Welcome Aboard</h2>
+            <p class="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em] mb-8">Registration Successful</p>
+            <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+                <div class="h-full bg-green-500 animate-progress"></div>
+            </div>
+            <p class="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest">Entering Dashboard...</p>
+        </div>
+    </template>
+</div>
                 <div class="bg-white/5 p-3 rounded-xl border border-white/5" wire:ignore>
                     <p class="text-[8px] text-slate-500 uppercase font-black">Bridge Status</p>
                     <p class="text-[10px] font-bold mt-1" id="bridge-status">Detecting...</p>
@@ -279,6 +384,16 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div class="bg-white/5 p-3 rounded-xl border border-white/5 col-span-2">
                     <p class="text-[8px] text-slate-500 uppercase font-black">Remote API URL</p>
                     <p class="text-[10px] font-bold mt-1 text-blue-400 truncate">{{ env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com' }}</p>
+                </div>
+                <div class="bg-blue-500/5 p-3 rounded-xl border border-blue-500/10 col-span-2">
+                    <p class="text-[8px] text-blue-500 uppercase font-black">Cloud Auditor (v83)</p>
+                    <div class="mt-2 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[7px] text-slate-500 uppercase font-black">Live Pulse Stream</span>
+                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                        </div>
+                        <p class="text-[9px] font-mono text-slate-300 bg-black/40 p-3 rounded-xl whitespace-pre-wrap break-all border border-white/5 shadow-inner leading-relaxed">{{ $lastCloudResponse }}</p>
+                    </div>
                 </div>
             </div>
 

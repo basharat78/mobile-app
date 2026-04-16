@@ -15,6 +15,7 @@
         "nativephp/mobile": "^3.0",
         "nativephp/mobile-camera": "^1.0",
         "nativephp/mobile-device": "^1.0",
+        "nativephp/mobile-network": "^1.0",
         "nativephp/mobile-system": "^1.0",
         "vendor/nativephp-local-notification": "dev-main"
     },

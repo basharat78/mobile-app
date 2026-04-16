@@ -8,6 +8,7 @@ use App\Models\LoadRequest;
 use App\Models\CarrierDocument;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use App\Services\NotificationService;
 
 class SyncService
@@ -22,13 +23,33 @@ class SyncService
     {
         $carrier = $user->carrier;
         if (!$carrier) return ['status' => 'error', 'message' => 'No carrier profile found.'];
-
         $stats = [
             'loads_found' => 0,
             'status_synced' => false,
             'docs_synced' => 0,
             'last_sync' => now()->format('H:i:s')
         ];
+
+        $context = app()->runningInConsole() ? 'BACKGROUND' : 'FOREGROUND';
+        Log::debug("SyncService: Starting {$context} pulse for {$user->email}");
+        Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [{$context}] Heartbeat started for {$user->email}");
+
+        // --- 0. REGISTRATION RECOVERY (v78) ---
+        // If we don't have a remote_id, check if we have pending signup data to retry
+        if (!$carrier->remote_id && $carrier->pending_registration_data) {
+            self::recoverPendingRegistration($user);
+        }
+
+        // --- 0.1 CONNECTIVITY PRE-FLIGHT (v79) ---
+        // Instant check to see if we can reach the Hostinger host before doing the big sync
+        try {
+            $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
+            $host = parse_url($baseUrl, PHP_URL_HOST);
+            if ($host && !checkdnsrr($host, "A") && !checkdnsrr($host, "AAAA")) {
+                 Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [{$context}] Aborted: No DNS for host.");
+                 return ['status' => 'error', 'message' => 'Network unreachable (DNS Failure)'];
+            }
+        } catch (\Exception $e) { /* Fallback to normal sync if checkdnsrr fails on this env */ }
 
         try {
             $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
@@ -118,11 +139,47 @@ class SyncService
             }
 
             Log::info("GlobalSync: Success for {$email}", $stats);
+            Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [{$context}] Sync SUCCESS. Loads: {$stats['loads_found']}, Docs: {$stats['docs_synced']}");
             return ['status' => 'success', 'data' => $stats];
 
         } catch (\Exception $e) {
             Log::error("GlobalSync: Failed for {$email}. Error: " . $e->getMessage());
+            Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [{$context}] Sync FAILED: " . $e->getMessage());
             return ['status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Attempts to register a carrier who signed up offline.
+     */
+    protected static function recoverPendingRegistration($user)
+    {
+        $carrier = $user->carrier;
+        $data = json_decode($carrier->pending_registration_data, true);
+        if (!$data) return;
+
+        Log::info("SyncService: Attempting Registration Recovery for {$user->email}");
+        Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [RECOVERY] Retrying registration for {$user->email}");
+
+        try {
+            $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
+            $response = Http::timeout(15)->post("{$baseUrl}/api/register", $data);
+
+            if ($response->successful()) {
+                $remoteData = $response->json();
+                if (isset($remoteData['carrier_id'])) {
+                    $carrier->update([
+                        'remote_id' => $remoteData['carrier_id'],
+                        'pending_registration_data' => null // SUCCESS: Clear the queue
+                    ]);
+                    Log::info("SyncService: Registration Recovery SUCCESS for {$user->email}");
+                    Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [RECOVERY] SUCCESS! Remote ID: " . $remoteData['carrier_id']);
+                }
+            } else {
+                Log::warning("SyncService: Registration Recovery FAILED for {$user->email}", ['status' => $response->status()]);
+            }
+        } catch (\Exception $e) {
+            Log::error("SyncService: Registration Recovery ERROR for {$user->email}: " . $e->getMessage());
         }
     }
 }

@@ -49,7 +49,11 @@
             }
         </style>
     </head>
-    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: true }" x-init="setTimeout(() => splash = false, 1000)">
+    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: true, isOnline: navigator.onLine }" x-init="
+        setTimeout(() => splash = false, 1000);
+        window.addEventListener('online', () => isOnline = true);
+        window.addEventListener('offline', () => isOnline = false);
+    ">
         <!-- Global Background Decorative Elements (Carrier only) - v27 Optimized -->
         @auth @if(Auth::user()->role === 'carrier')
             <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden bg-slate-900">
@@ -82,6 +86,20 @@
             <div class="mt-6 w-48 h-1 bg-white/5 rounded-full overflow-hidden relative z-10">
                 <div class="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-progress"></div>
             </div>
+        </div>
+
+        <!-- Global Connectivity Guard (v79) -->
+        <div x-show="!isOnline && !splash" x-cloak class="fixed inset-0 z-[300] bg-slate-900/95 backdrop-blur-2xl flex flex-col items-center justify-center px-10 text-center animate-fadeIn">
+            <div class="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center mb-8 border border-red-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-10 h-10 text-red-500 animate-pulse">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+            </div>
+            <h2 class="text-3xl font-black text-white italic uppercase tracking-tighter mb-4">Signal Lost</h2>
+            <p class="text-slate-400 font-bold uppercase text-[10px] tracking-widest leading-relaxed">Please connect to the internet to continue syncing your loads.</p>
+            <button onclick="window.location.reload()" class="mt-10 px-8 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 shadow-2xl">
+                Manual Retry
+            </button>
         </div>
 
         <div class="min-h-screen pb-24 flex flex-col md:flex-row" x-cloak x-show="!splash">
@@ -166,12 +184,34 @@
                     </div>
 
                     <div class="flex items-center gap-3">
-                        <!-- Connection Indicator -->
-                        <div class="flex items-center gap-1.5 px-2 py-1.5 bg-white/5 rounded-xl border border-white/10">
-                            <div class="w-1.5 h-1.5 rounded-full {{ $db_online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 animate-pulse' }}"></div>
-                            <span class="text-[7px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">
-                                {{ $db_online ? 'Sys:On' : 'Sys:Off' }}
-                            </span>
+                        <!-- Connection Indicator (v78) -->
+                        <div class="flex items-center gap-2 px-2.5 py-1.5 bg-white/5 rounded-xl border border-white/10">
+                            <!-- Network Status -->
+                            <div class="flex items-center gap-1">
+                                <template x-if="isOnline">
+                                    <div class="flex items-center gap-1">
+                                        <div class="w-1 h-1 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                                        <span class="text-[7px] font-black uppercase tracking-widest text-blue-400">NET:ON</span>
+                                    </div>
+                                </template>
+                                <template x-if="!isOnline">
+                                    <div class="flex items-center gap-1">
+                                        <div class="w-1 h-1 rounded-full bg-red-500 animate-pulse"></div>
+                                        <span class="text-[7px] font-black uppercase tracking-widest text-red-500">NET:OFF</span>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div class="w-px h-2 bg-white/10"></div>
+
+                            <!-- System Status (MySQL) -->
+                            <div class="flex items-center gap-1">
+                                <div class="w-1 h-1 rounded-full {{ $db_online ? 'bg-green-500' : 'bg-red-500 animate-pulse' }}"></div>
+                                <span class="text-[7px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">
+                                    {{ $db_online ? 'SYS:ON' : 'SYS:OFF' }}
+                                </span>
+                            </div>
+                            
                             <button onclick="window.location.reload(true)" class="ml-1 p-0.5 hover:bg-white/10 rounded transition-colors" title="Force Sync">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-2 h-2 text-slate-500">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />

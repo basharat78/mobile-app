@@ -221,10 +221,14 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             <form wire:submit="signup" class="space-y-6 relative z-10">
-                <!-- Role Selection -->
-                <div class="p-1 bg-slate-900 border border-white/5 rounded-2xl flex items-center">
+                <!-- Role Selection: Hidden on mobile, visible on web panel -->
+                <div class="hidden md:flex p-1 bg-slate-900 border border-white/5 rounded-2xl items-center">
                     <button type="button" wire:click="$set('role', 'carrier')" class="flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all {{ $role === 'carrier' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300' }}">Carrier</button>
                     <button type="button" wire:click="$set('role', 'dispatcher')" class="flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all {{ $role === 'dispatcher' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300' }}">Dispatcher</button>
+                </div>
+                <!-- Mobile: Carrier-only badge -->
+                <div class="md:hidden p-1 bg-slate-900 border border-white/5 rounded-2xl flex items-center">
+                    <div class="flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white shadow-lg shadow-blue-500/20 text-center">Carrier Account</div>
                 </div>
 
                 <div class="space-y-4">

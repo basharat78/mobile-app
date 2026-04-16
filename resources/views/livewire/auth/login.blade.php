@@ -9,6 +9,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public $login = '';
     public $password = '';
     public $remember = false;
+    public $showSuccess = false;
+    public $isProcessing = false;
 
     public function authenticate()
     {
@@ -19,9 +21,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
         $fieldType = filter_var($this->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
 
+        $this->isProcessing = true;
+
         // 1. Try Local Login
         if (Auth::attempt([$fieldType => $this->login, 'password' => $this->password], $this->remember)) {
             session()->regenerate();
+            $this->showSuccess = true;
+            sleep(1);
             return redirect()->intended('/dashboard');
         }
 
@@ -60,6 +66,8 @@ new #[Layout('components.layouts.app')] class extends Component
 
                 Auth::login($user, $this->remember);
                 session()->regenerate();
+                $this->showSuccess = true;
+                sleep(1);
                 return redirect()->intended('/dashboard');
             } else {
                 // Return server-provided error if available
@@ -70,6 +78,7 @@ new #[Layout('components.layouts.app')] class extends Component
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Cloud auth recovery failed', ['error' => $e->getMessage()]);
             $this->addError('login', 'Network Error: Check internet connection for identity recovery.');
+            $this->isProcessing = false;
             return;
         }
     }
@@ -157,6 +166,43 @@ new #[Layout('components.layouts.app')] class extends Component
                 </a>
             </div>
         </div>
+    </div>
+
+    <!-- Login Pop Alerts (v84) -->
+    <div x-data="{ showProcessing: @entangle('isProcessing'), showSuccess: @entangle('showSuccess') }" class="relative z-[500]">
+        <!-- Processing Modal -->
+        <template x-if="showProcessing && !showSuccess">
+            <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-10 text-center">
+                <div class="relative mb-8">
+                    <div class="w-24 h-24 bg-blue-600/20 rounded-[2rem] flex items-center justify-center border border-blue-500/30">
+                        <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    <div class="absolute -inset-4 bg-blue-500/10 blur-2xl rounded-full animate-pulse"></div>
+                </div>
+                <h2 class="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">Authenticating</h2>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Verifying credentials...</p>
+            </div>
+        </template>
+
+        <!-- Success Modal -->
+        <template x-if="showSuccess">
+            <div class="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl flex flex-col items-center justify-center p-10 text-center">
+                <div class="w-24 h-24 bg-green-500/20 rounded-[2rem] flex items-center justify-center border border-green-500/30 mb-8 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-10 h-10 text-green-500">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-black text-white italic uppercase tracking-tighter mb-2">Welcome Back</h2>
+                <p class="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em] mb-8">Login Successful</p>
+                <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-green-500 animate-progress"></div>
+                </div>
+                <p class="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest">Loading Dashboard...</p>
+            </div>
+        </template>
     </div>
 </div>
 

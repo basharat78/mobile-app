@@ -3,11 +3,14 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 use App\Models\Load;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('components.layouts.app')] class extends Component
 {
+    use WithPagination;
+
     public $search = '';
     public $isSyncing = false;
     public $activeLoadNotes = null;
@@ -57,7 +60,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 });
             })
             ->latest()
-            ->get();
+            ->paginate(10);
     }
 
     public function requestLoad($loadId)
@@ -302,6 +305,16 @@ new #[Layout('components.layouts.app')] class extends Component
                     </div>
                 </div>
             @endforelse
+        </div>
+
+        <!-- Pagination (v85) -->
+        <div class="mt-6 space-y-3">
+            <div class="flex items-center justify-center gap-3">
+                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Page {{ $this->loads->currentPage() }} of {{ $this->loads->lastPage() }}</span>
+                <span class="w-1 h-1 rounded-full bg-slate-600"></span>
+                <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest">{{ $this->loads->total() }} Loads</span>
+            </div>
+            {{ $this->loads->links() }}
         </div>
 
         <!-- SYNC INTEL FOOTER -->

@@ -47,6 +47,15 @@
                 backdrop-filter: none !important;
                 -webkit-backdrop-filter: none !important;
             }
+
+            /* v89: Mobile Safe Area Hardening */
+            :root {
+                --sat: env(safe-area-inset-top);
+                --sab: env(safe-area-inset-bottom);
+            }
+            .safe-top { top: calc(1.5rem + var(--sat, 0px)); }
+            .safe-bottom { bottom: calc(2.2rem + var(--sab, 0px)); }
+            .safe-pt { padding-top: calc(8.5rem + var(--sat, 0px)); }
         </style>
     </head>
     <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: true, isOnline: navigator.onLine }" x-init="
@@ -159,7 +168,7 @@
 
                 <!-- Mobile Top Header (Carrier Redesign) -->
                 @if($isCarrier)
-                <header class="fixed top-4 left-4 right-4 z-50 glass-morphism rounded-2xl px-5 py-3.5 flex items-center justify-between border border-white/10 glow-blue">
+                <header class="fixed safe-top left-4 right-4 z-50 glass-morphism rounded-2xl px-5 py-3.5 flex items-center justify-between border border-white/10 glow-blue">
                     <div class="flex items-center gap-4">
                         @if(!$isDashboard)
                             <button onclick="history.back()" class="p-2 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all active:scale-90 overflow-hidden relative group">
@@ -228,7 +237,7 @@
                 </header>
                 @else
                 <!-- Original Mobile Top Header (Dispatcher) -->
-                <header class="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 py-4 flex items-center justify-between md:hidden">
+                <header class="fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur-xl border-b border-white/10 px-6 pt-[calc(1rem+var(--sat,0px))] pb-4 flex items-center justify-between md:hidden">
                     <div class="flex items-center gap-4">
                         @if(!$isDashboard)
                             <button onclick="history.back()" class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
@@ -313,7 +322,7 @@
                 @endif
             @endauth
 
-            <main class="flex-1 min-h-screen pt-20 {{ Auth::check() && Auth::user()->role === 'dispatcher' ? 'md:ml-64 md:pt-0' : 'max-w-md mx-auto md:max-w-none' }}">
+            <main class="flex-1 min-h-screen {{ Auth::check() && Auth::user()->role === 'carrier' ? 'safe-pt' : 'pt-20' }} {{ Auth::check() && Auth::user()->role === 'dispatcher' ? 'md:ml-64 md:pt-0' : 'max-w-md mx-auto md:max-w-none' }}">
                 <livewire:notification-manager />
                 {{ $slot }}
             </main>
@@ -321,7 +330,7 @@
             @auth
                 <!-- Bottom Navigation (Carrier Redesign) -->
                 @if($isCarrier)
-                <nav class="fixed bottom-6 left-6 right-6 z-50">
+                <nav class="fixed safe-bottom left-6 right-6 z-50">
                     <div class="max-w-md mx-auto glass-morphism rounded-[2rem] px-2 py-2 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between">
                         <a href="/dashboard" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('dashboard') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
                             @if(request()->is('dashboard'))
@@ -343,14 +352,24 @@
                             <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Find</span>
                         </a>
 
-                        <a href="/document-upload" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('document-upload') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
-                            @if(request()->is('document-upload'))
+                        <a href="/my-requests" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('my-requests') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
+                            @if(request()->is('my-requests'))
                                 <div class="absolute inset-0 bg-blue-gradient rounded-2xl opacity-100 scale-100 transition-all duration-300 shadow-lg shadow-blue-500/40"></div>
                             @endif
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10 transition-transform duration-300 group-active:scale-90">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5M6 7.5h3v3H6v-3Z" />
                             </svg>
-                            <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Docs</span>
+                            <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Bids</span>
+                        </a>
+
+                        <a href="/fleet" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('fleet*') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">
+                            @if(request()->is('fleet*'))
+                                <div class="absolute inset-0 bg-blue-gradient rounded-2xl opacity-100 scale-100 transition-all duration-300 shadow-lg shadow-blue-500/40"></div>
+                            @endif
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 relative z-10 transition-transform duration-300 group-active:scale-90">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                            </svg>
+                            <span class="text-[9px] font-black uppercase tracking-tighter relative z-10">Hub</span>
                         </a>
 
                         <a href="/profile" class="relative group flex-1 py-3 flex flex-col items-center gap-1 transition-all duration-300 {{ request()->is('profile') ? 'text-white' : 'text-slate-500 hover:text-slate-300' }}">

@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function () {
 
         Volt::route('/document-upload', 'auth.document-upload')->name('document-upload');
         Volt::route('/preferences', 'auth.carrier-preferences')->name('preferences');
+        Volt::route('/fleet', 'carrier.fleet-menu')->name('fleet');
         Volt::route('/my-requests', 'carrier.my-requests')->name('my-requests');
 
         Volt::route('/loads', 'loads')->name('loads');

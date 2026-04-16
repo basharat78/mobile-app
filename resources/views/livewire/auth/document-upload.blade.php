@@ -17,6 +17,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public $pendingDocType = null;
     public $uploadStatus = '';
     public $syncing = []; // Track which docs are currently uploading
+    public $docsSynced = false; // v87: Track if cloud sync completed
 
     public function mount()
     {
@@ -56,13 +57,23 @@ new #[Layout('components.layouts.app')] class extends Component
 
                         \App\Models\CarrierDocument::updateOrCreate(
                             ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
-                            ['status' => $remoteDoc['status']]
+                            [
+                                'status' => $remoteDoc['status'],
+                                'file_path' => $localDoc->file_path ?? ('cloud_synced/' . $remoteDoc['type']),
+                            ]
                         );
                     }
                 }
+
+                $this->docsSynced = true;
+            } else {
+                // API responded but not successfully - still mark as synced to show UI
+                $this->docsSynced = true;
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning('Doc status sync failed', ['error' => $e->getMessage()]);
+            // Mark as synced anyway so user isn't stuck on loading forever
+            $this->docsSynced = true;
         }
     }
 
@@ -281,8 +292,8 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
 
                         {{-- Action Buttons --}}
-                        @if($isApproved)
-                            {{-- Approved: Buttons disabled --}}
+                        @if($isApproved || $status === 'pending')
+                            {{-- Approved or Pending: Buttons locked --}}
                             <div class="grid grid-cols-2 gap-4 opacity-30 pointer-events-none">
                                 <div class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white">
                                     Upload
@@ -292,7 +303,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </div>
                             </div>
                         @else
-                            {{-- Missing, Pending, or Rejected: Buttons active --}}
+                            {{-- Missing or Rejected: Buttons active --}}
                             <div class="grid grid-cols-2 gap-4">
                                 <button wire:click="pickFromGallery('{{ $doc }}')" class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 group/btn overflow-hidden relative">
                                     <span wire:loading.remove wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">{{ $isRejected ? 'Re-upload' : 'Upload' }}</span>
@@ -309,6 +320,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 </button>
                             </div>
                         @endif
+
 
                     </div>
                 </div>

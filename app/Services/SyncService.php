@@ -19,7 +19,7 @@ class SyncService
      * 
      * @return array Sync statistics
      */
-    public static function performGlobalSync(User $user)
+    public static function performGlobalSync(User $user, $silent = false)
     {
         $carrier = $user->carrier;
         if (!$carrier) return ['status' => 'error', 'message' => 'No carrier profile found.'];
@@ -88,7 +88,7 @@ class SyncService
                     );
                     
                     // Trigger Alert evaluation
-                    NotificationService::notifyNewLoad($load);
+                    NotificationService::notifyNewLoad($load, $silent);
 
                     // Sync Bid status if present
                     if (isset($l['requests']) && count($l['requests']) > 0) {
@@ -98,7 +98,7 @@ class SyncService
                             ['status' => $remoteReq['status']]
                         );
                         // Trigger Alert evaluation
-                        NotificationService::notifyBidStatus($localReq);
+                        NotificationService::notifyBidStatus($localReq, $silent);
                     }
 
                     $syncedIds[] = $load->id;
@@ -121,7 +121,7 @@ class SyncService
                 // Account Status
                 if (isset($data['status'])) {
                     $carrier->update(['status' => $data['status']]);
-                    NotificationService::notifyAccountStatus($carrier);
+                    NotificationService::notifyAccountStatus($carrier, $silent);
                     $stats['status_synced'] = true;
                 }
 
@@ -132,7 +132,7 @@ class SyncService
                             ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
                             ['status' => $remoteDoc['status']]
                         );
-                        NotificationService::notifyDocumentStatus($doc);
+                        NotificationService::notifyDocumentStatus($doc, $silent);
                         $stats['docs_synced']++;
                     }
                 }

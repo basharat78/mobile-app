@@ -11,7 +11,7 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     public $search = '';
     public $statusFilter = '';
-    public $view = 'all'; // 'my' or 'all'
+    public $view = 'my'; // Default to 'my' view
 
     public function getCarriersProperty()
     {
@@ -130,6 +130,9 @@ new #[Layout('components.layouts.app')] class extends Component
                             @else
                                 <p class="text-[9px] text-yellow-500/50 font-black uppercase tracking-[0.2em] mt-1 italic">Unassigned Carrier</p>
                             @endif
+                        </div>
+                        <div class="mt-4 flex gap-3">
+                            <a href="{{ route('dispatcher.loads', ['carrier_id' => $carrier->id]) }}" wire:navigate class="px-5 py-2 bg-blue-600/10 text-blue-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-500/20">Post Load Job</a>
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-3">

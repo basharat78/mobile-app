@@ -2,6 +2,7 @@
 
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use App\Models\Load;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,8 @@ new #[Layout('components.layouts.app')] class extends Component
     public $weight = '';
     public $broker_name = '';
     public $notes = '';
+    
+    #[Url]
     public $carrier_id = '';
     public $editingLoadId = null;
     public $showingNotes = false;

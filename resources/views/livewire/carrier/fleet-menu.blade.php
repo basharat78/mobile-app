@@ -25,7 +25,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         <div class="grid grid-cols-1 gap-6">
             <!-- Documents Button -->
-            <a href="/document-upload" class="group relative overflow-hidden p-8 glass-morphism border border-white/10 rounded-[2.5rem] transition-all duration-500 hover:border-blue-500/40 hover:shadow-[0_20px_50px_-15px_rgba(59,130,246,0.2)]">
+            <a href="/document-upload" wire:navigate class="group relative overflow-hidden p-8 glass-morphism border border-white/10 rounded-[2.5rem] transition-all duration-500 hover:border-blue-500/40 hover:shadow-[0_20px_50px_-15px_rgba(59,130,246,0.2)]">
                 <div class="relative z-10 flex items-center gap-6">
                     <div class="w-16 h-16 rounded-2xl bg-blue-600/20 flex items-center justify-center border border-blue-500/20 group-hover:scale-110 transition-transform duration-500">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8 text-blue-500">
@@ -44,7 +44,7 @@ new #[Layout('components.layouts.app')] class extends Component
             </a>
 
             <!-- Preferences Button -->
-            <a href="/preferences" class="group relative overflow-hidden p-8 glass-morphism border border-white/10 rounded-[2.5rem] transition-all duration-500 hover:border-purple-500/40 hover:shadow-[0_20px_50px_-15px_rgba(168,85,247,0.2)]">
+            <a href="/preferences" wire:navigate class="group relative overflow-hidden p-8 glass-morphism border border-white/10 rounded-[2.5rem] transition-all duration-500 hover:border-purple-500/40 hover:shadow-[0_20px_50px_-15px_rgba(168,85,247,0.2)]">
                 <div class="relative z-10 flex items-center gap-6">
                     <div class="w-16 h-16 rounded-2xl bg-purple-600/20 flex items-center justify-center border border-purple-500/20 group-hover:scale-110 transition-transform duration-500">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8 text-purple-500">

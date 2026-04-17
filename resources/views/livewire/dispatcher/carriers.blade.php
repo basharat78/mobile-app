@@ -11,11 +11,11 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     public $search = '';
     public $statusFilter = '';
-    public $view = 'my'; // Default to 'my' view
 
     public function getCarriersProperty()
     {
-        $query = Carrier::with(['user', 'documents'])
+        return Carrier::with(['user', 'documents'])
+            ->where('dispatcher_id', Auth::id()) // Strict restriction
             ->when($this->search, function ($query) {
                 $query->whereHas('user', function ($q) {
                     $q->where('name', 'like', '%' . $this->search . '%')
@@ -24,31 +24,11 @@ new #[Layout('components.layouts.app')] class extends Component
             })
             ->when($this->statusFilter, function ($query) {
                 $query->where('status', $this->statusFilter);
-            });
-
-        if ($this->view === 'my') {
-            $query->where('dispatcher_id', Auth::id());
-        }
-
-        return $query->latest()->get();
+            })
+            ->latest()
+            ->get();
     }
 
-    public function setView($view)
-    {
-        $this->view = $view;
-    }
-
-    public function assignCarrier($carrierId)
-    {
-        Carrier::where('id', $carrierId)->update(['dispatcher_id' => Auth::id()]);
-        session()->flash('message', 'Carrier successfully assigned to your account.');
-    }
-
-    public function unassignCarrier($carrierId)
-    {
-        Carrier::where('id', $carrierId)->update(['dispatcher_id' => null]);
-        session()->flash('message', 'Carrier unassigned from your account.');
-    }
 
     public function updateStatus($carrierId, $status)
     {
@@ -91,10 +71,6 @@ new #[Layout('components.layouts.app')] class extends Component
             <p class="text-slate-500 font-medium">Manage and verify your logistics partners</p>
         </div>
         <div class="flex gap-4">
-            <div class="p-1 bg-slate-800 border border-white/5 rounded-xl flex items-center">
-                <button wire:click="setView('my')" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {{ $view === 'my' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300' }}">My Carriers</button>
-                <button wire:click="setView('all')" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {{ $view === 'all' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300' }}">All Marketplace</button>
-            </div>
             <select wire:model.live="statusFilter" class="bg-slate-800 border border-white/5 rounded-xl px-4 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
@@ -136,12 +112,6 @@ new #[Layout('components.layouts.app')] class extends Component
                         </div>
                     </div>
                     <div class="flex flex-col items-end gap-3">
-                        <div class="flex gap-2">
-                            @if($carrier->dispatcher_id === Auth::id())
-                                <button wire:click="unassignCarrier({{ $carrier->id }})" class="px-4 py-1.5 bg-red-500/10 text-red-500 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all">Unassign</button>
-                            @elseif(!$carrier->dispatcher_id)
-                                <button wire:click="assignCarrier({{ $carrier->id }})" class="px-4 py-1.5 bg-blue-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-all">Assign To Me</button>
-                            @endif
                             <span class="px-4 py-1.5 bg-{{ $carrier->status === 'approved' ? 'green' : ($carrier->status === 'pending' ? 'yellow' : 'red') }}-500/10 text-{{ $carrier->status === 'approved' ? 'green' : ($carrier->status === 'pending' ? 'yellow' : 'red') }}-500 rounded-full text-[10px] font-black uppercase tracking-widest">
                                 {{ $carrier->status }}
                             </span>

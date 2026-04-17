@@ -29,6 +29,13 @@ new #[Layout('components.layouts.app')] class extends Component
     public $showingNotes = false;
     public $selectedLoadNotes = '';
 
+    public function mount(\Illuminate\Http\Request $request)
+    {
+        if ($request->has('carrier_id')) {
+            $this->carrier_id = $request->query('carrier_id');
+        }
+    }
+
     public function updatedMiles()
     {
         $this->calculateTotals();
@@ -323,11 +330,12 @@ new #[Layout('components.layouts.app')] class extends Component
                             class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2 mb-1">Target
                             Carrier</label>
                         <select wire:model="carrier_id"
-                            class="w-full bg-slate-900 border border-white/5 rounded-2xl px-5 py-4 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold">
-                            <option value="">Select Carrier</option>
+                            class="w-full bg-slate-900 border border-blue-500/30 rounded-2xl px-5 py-4 text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold shadow-lg shadow-blue-500/5">
+                            <option value="">-- Choose Assigned Carrier --</option>
                             @foreach($this->carriers as $carrier)
-                                <option value="{{ $carrier->id }}">{{ $carrier->user->name ?? 'Unknown' }}
-                                    ({{ $carrier->user->company_name ?? 'No Company' }})</option>
+                                <option value="{{ $carrier->id }}" class="bg-slate-900 text-white py-2">
+                                    🚛 {{ $carrier->user->company_name ?? 'Unknown' }} | {{ $carrier->user->name ?? 'No Name' }}
+                                </option>
                             @endforeach
                         </select>
                         @error('carrier_id') <span class="text-red-500 text-[10px] font-bold ml-2">{{ $message }}</span>

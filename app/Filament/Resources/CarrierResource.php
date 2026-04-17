@@ -102,7 +102,7 @@ class CarrierResource extends Resource
                     ->query(fn (Builder $query): Builder => $query->whereNull('dispatcher_id')),
             ])
             ->actions([
-                Tables\Actions\Action::make('assign_dispatcher')
+                Actions\Action::make('assign_dispatcher')
                     ->label('Assign')
                     ->icon('heroicon-o-user-plus')
                     ->color('success')

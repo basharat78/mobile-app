@@ -14,6 +14,9 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Disable foreign keys temporarily to allow the 'Nuclear' drop on MySQL/Local
+        Schema::disableForeignKeyConstraints();
+
         // 1. Drop the table and all its strict locks
         Schema::dropIfExists('loads');
 
@@ -38,6 +41,9 @@ return new class extends Migration
             $table->enum('status', ['available', 'pending', 'booked'])->default('available');
             $table->timestamps();
         });
+
+        // Re-enable foreign keys
+        Schema::enableForeignKeyConstraints();
     }
 
     /**

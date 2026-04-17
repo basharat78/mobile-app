@@ -15,7 +15,7 @@ class CarrierResource extends Resource
 {
     protected static ?string $model = Carrier::class;
 
-    protected static string | \UnitEnum | null $navigationIcon = 'heroicon-o-truck';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-truck';
 
     protected static string | \UnitEnum | null $navigationGroup = 'Operations';
 

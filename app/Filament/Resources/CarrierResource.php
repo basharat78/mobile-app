@@ -10,7 +10,9 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Actions;
+use Filament\Tables\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\User;
 
 class CarrierResource extends Resource
 {
@@ -94,8 +96,36 @@ class CarrierResource extends Resource
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
                     ]),
+                Filter::make('unassigned')
+                    ->label('Pending Assignment')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->whereNull('dispatcher_id')),
             ])
             ->actions([
+                Tables\Actions\Action::make('assign_dispatcher')
+                    ->label('Assign')
+                    ->icon('heroicon-o-user-plus')
+                    ->color('success')
+                    ->form([
+                        Forms\Components\Select::make('dispatcher_id')
+                            ->label('Select Dispatcher')
+                            ->options(fn () => User::query()
+                                ->where('role', 'dispatcher')
+                                ->pluck('name', 'id')
+                                ->toArray())
+                            ->required()
+                            ->searchable(),
+                    ])
+                    ->action(function (Carrier $record, array $data): void {
+                        $record->update([
+                            'dispatcher_id' => $data['dispatcher_id'],
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Dispatcher Assigned')
+                            ->success()
+                            ->send();
+                    }),
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
             ])

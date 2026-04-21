@@ -48,10 +48,20 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function loads()
     {
-        return Load::where('carrier_id', Auth::user()->carrier->id)
+        return Load::with(['dispatcher', 'requests.carrier.user', 'carrier.user']) // Eager load dispatcher
+            ->where(function($query) {
+                $query->whereNull('carrier_id') // Public Marketplace
+                      ->orWhere('carrier_id', Auth::user()->carrier->id); // Specifically assigned to me
+            })
             ->whereDoesntHave('requests', function($query) {
                 $query->where('carrier_id', Auth::user()->carrier->id)
-                      ->whereIn('status', ['approved', 'rejected']);
+                      ->where(function($q) {
+                          $q->where('status', 'rejected')
+                            ->orWhere(function($q) {
+                                $q->where('status', 'approved')
+                                  ->where('updated_at', '<', now()->subMinutes(30));
+                            });
+                      });
             })
             ->when($this->search, function ($query) {
                 $query->where(function($q) {
@@ -71,13 +81,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $carrier = Auth::user()->carrier;
         $user = Auth::user();
 
-        // 1. Update Local
-        \App\Models\LoadRequest::updateOrCreate(
-            ['load_id' => $loadId, 'carrier_id' => $carrier->id],
-            ['status' => 'pending']
-        );
-
-        // 2. Sync to Cloud
+        // 1. Sync to Cloud FIRST
         try {
             $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/loads/request';
             $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl, [
@@ -86,21 +90,40 @@ new #[Layout('components.layouts.app')] class extends Component
             ]);
 
             if ($response->successful()) {
+                // 2. ONLY Update Local if Cloud SUCCESS
+                \App\Models\LoadRequest::updateOrCreate(
+                    ['load_id' => $loadId, 'carrier_id' => $carrier->id],
+                    ['status' => 'pending']
+                );
+                
                 session()->flash('sync_success', $response->json()['message'] ?? 'Bid recorded on cloud!');
             } else {
                 $error = $response->json()['message'] ?? 'Unknown Cloud Error';
-                session()->flash('sync_error', "Cloud Refused Bid: " . $error);
+                session()->flash('sync_error', "Refused: " . $error);
                 
+                // Cleanup: Remove local bid if cloud refused (it's not valid on cloud)
+                \App\Models\LoadRequest::where('load_id', $loadId)
+                    ->where('carrier_id', $carrier->id)
+                    ->delete();
+
                 // v51 Auto-Recovery: If load not found on server, refresh stale data
                 if ($response->status() === 404) {
                     $this->syncLoads();
                 }
 
                 \Illuminate\Support\Facades\Log::warning('Cloud bid refusal', ['error' => $error]);
+                $this->processingLoadId = null; // Unlock button for retry
             }
         } catch (\Exception $e) {
-            session()->flash('sync_error', 'Network Error: Bid stored locally, but cloud sync failed.');
+            session()->flash('sync_error', 'Network Error: Cloud unreachable. Bid NOT sent.');
+            
+            // Cleanup local state on hard network failure
+            \App\Models\LoadRequest::where('load_id', $loadId)
+                ->where('carrier_id', $carrier->id)
+                ->delete();
+
             \Illuminate\Support\Facades\Log::error('Cloud bid sync exception', ['error' => $e->getMessage()]);
+            $this->processingLoadId = null; // Unlock button for retry
         }
     }
 };
@@ -242,7 +265,16 @@ new #[Layout('components.layouts.app')] class extends Component
                         </div>
                         <div class="glass-morphism border border-white/5 rounded-2xl p-4 flex flex-col items-center shadow-inner">
                             <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Dispatcher / Broker</span>
-                            <span class="text-[11px] font-black text-white uppercase tracking-wider italic leading-tight">{{ $load->broker_name ?? 'Direct' }}</span>
+                            <span class="text-[11px] font-black text-white uppercase tracking-wider italic leading-tight text-center">{{ $load->broker_name ?? 'Direct' }}</span>
+                            {{-- @php
+                                $dispPhone = $load->dispatcher_phone ?? ($load->dispatcher ? $load->dispatcher->phone : null);
+                            @endphp
+                            @if($status === 'approved' && $dispPhone)
+                                <div class="mt-2 pt-2 border-t border-white/5 w-full flex flex-col items-center">
+                                    <span class="text-[7px] font-black text-blue-500 uppercase tracking-widest mb-0.5">Contact Number</span>
+                                    <a href="tel:{{ $dispPhone }}" class="text-[10px] font-black text-green-400 group-hover:text-green-300 transition-colors">{{ $dispPhone }}</a>
+                                </div>
+                            @endif --}}
                         </div>
                     </div>
 
@@ -265,12 +297,24 @@ new #[Layout('components.layouts.app')] class extends Component
 
                     <!-- Footer Actions -->
                     <div class="flex items-center gap-4 pt-2">
-                        <button wire:click="showNotes({{ $load->id }})" class="w-14 h-14 rounded-2xl glass-morphism border border-white/5 flex items-center justify-center group/btn hover:border-blue-500/30 transition-all active:scale-95 shrink-0 shadow-lg">
+                        <button wire:click="showNotes({{ $load->id }})" class="w-14 h-14 rounded-2xl glass-morphism border border-white/5 flex items-center justify-center group/btn hover:border-blue-500/30 transition-all active:scale-95 shrink-0 shadow-lg" title="View Notes">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-slate-400 group-hover/btn:text-blue-500 transition-colors">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3h9m-9 3h9m-6.75-12.75h3.375c.621 0 1.125.504 1.125 1.125v17.25c0 .621-.504 1.125-1.125 1.125H6.75c-.621 0-1.125-.504-1.125-1.125V3.375c0-.621.504-1.125 1.125-1.125Z" />
                             </svg>
                         </button>
-
+                        {{-- new --}}
+                           @php
+                                $dispPhone = $load->dispatcher_phone ?? ($load->dispatcher ? $load->dispatcher->phone : null);
+                            @endphp
+                         
+                        @if($status === 'approved' && $dispPhone)
+                            <a href="tel:{{ $dispPhone }}" class="w-14 h-14 rounded-2xl glass-morphism border border-white/5 flex items-center justify-center group/btn hover:border-green-500/30 transition-all active:scale-95 shrink-0 shadow-lg" title="Call Dispatcher">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6 text-slate-400 group-hover/btn:text-green-500 transition-colors">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+                                </svg>
+                            </a>
+                        @endif
+            {{-- end --}}
                         @php
                             $isProcessing = $processingLoadId === $load->id;
                         @endphp

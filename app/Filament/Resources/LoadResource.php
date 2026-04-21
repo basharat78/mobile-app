@@ -31,6 +31,7 @@ class LoadResource extends Resource
                             ->label('Dispatcher')
                             ->required()
                             ->searchable(),
+                        Forms\Components\Hidden::make('dispatcher_phone'),
                         Forms\Components\Select::make('carrier_id')
                             ->relationship('carrier.user', 'name')
                             ->label('Assigned Carrier')

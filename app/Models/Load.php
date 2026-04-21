@@ -9,6 +9,7 @@ class Load extends Model
     protected $fillable = [
         'id', // Allow cloud ID to be preserved during sync
         'dispatcher_id',
+        'dispatcher_phone',
         'carrier_id',
         'pickup_location',
         'drop_location',
@@ -26,6 +27,16 @@ class Load extends Model
         'status',
         'is_notified',
     ];
+
+    protected static function booted()
+    {
+        static::saving(function ($load) {
+            // Mirror dispatcher phone directly from the users table for 100% reliability
+            if ($load->dispatcher_id && empty($load->dispatcher_phone)) {
+                $load->dispatcher_phone = \App\Models\User::where('id', $load->dispatcher_id)->value('phone');
+            }
+        });
+    }
 
     public function dispatcher()
     {

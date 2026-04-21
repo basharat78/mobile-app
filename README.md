@@ -56,3 +56,29 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Build APk
+export PATH="/usr/local/bin:/Applications/XAMPP/xamppfiles/bin:$PATH" && \
+php artisan view:clear && \
+php artisan route:clear && \
+php artisan cache:clear && \
+npm run build && \
+rm nativephp/android/app/src/main/assets/laravel_bundle.zip && \
+zip -r nativephp/android/app/src/main/assets/laravel_bundle.zip \
+  .env \
+  artisan \
+  composer.json \
+  app \
+  bootstrap \
+  config \
+  database \
+  public \
+  resources \
+  routes \
+  vendor \
+  -x "database/database.sqlite" && echo "BUNDLE V61 OK" && \
+sed -i '' 's/versionCode = 60/versionCode = 61/g' nativephp/android/app/build.gradle.kts && \
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" && \
+cd nativephp/android && \
+./gradlew clean && \
+./gradlew assembleDebug 2>&1

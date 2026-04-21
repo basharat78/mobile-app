@@ -12,9 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // For MySQL, we use a raw statement to ensure the ENUM is updated correctly
-        // without needing doctrine/dbal or dealing with 'change()' limitations on ENUMs.
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('dispatcher', 'carrier', 'admin') DEFAULT 'carrier'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('dispatcher', 'carrier', 'admin') DEFAULT 'carrier'");
+        }
     }
 
     /**
@@ -22,6 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('dispatcher', 'carrier') DEFAULT 'carrier'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('dispatcher', 'carrier') DEFAULT 'carrier'");
+        }
     }
 };

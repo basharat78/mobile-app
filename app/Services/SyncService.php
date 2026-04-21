@@ -69,6 +69,7 @@ class SyncService
                         ['id' => $l['id']],
                         [
                             'dispatcher_id' => $l['dispatcher_id'],
+                            'dispatcher_phone' => $l['dispatcher_phone'] ?? null,
                             'carrier_id' => $carrier->id, 
                             'pickup_location' => $l['pickup_location'],
                             'pickup_time' => $l['pickup_time'],

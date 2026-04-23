@@ -94,10 +94,16 @@ class SyncService
                     // Sync Bid status if present
                     if (isset($l['requests']) && count($l['requests']) > 0) {
                         $remoteReq = $l['requests'][0];
-                        $localReq = LoadRequest::updateOrCreate(
-                            ['load_id' => $load->id, 'carrier_id' => $carrier->id],
-                            ['status' => $remoteReq['status']]
-                        );
+                        $localReq = LoadRequest::where('load_id', $load->id)->where('carrier_id', $carrier->id)->first();
+                        if ($localReq && $localReq->status !== $remoteReq['status']) {
+                            $localReq->update(['status' => $remoteReq['status'], 'is_notified' => false]);
+                        } elseif (!$localReq) {
+                            $localReq = LoadRequest::create([
+                                'load_id' => $load->id,
+                                'carrier_id' => $carrier->id,
+                                'status' => $remoteReq['status']
+                            ]);
+                        }
                         // Trigger Alert evaluation
                         NotificationService::notifyBidStatus($localReq, $silent);
                     }
@@ -121,7 +127,9 @@ class SyncService
 
                 // Account Status
                 if (isset($data['status'])) {
-                    $carrier->update(['status' => $data['status']]);
+                    if ($carrier->status !== $data['status']) {
+                        $carrier->update(['status' => $data['status'], 'is_notified' => false]);
+                    }
                     NotificationService::notifyAccountStatus($carrier, $silent);
                     $stats['status_synced'] = true;
                 }
@@ -129,10 +137,15 @@ class SyncService
                 // Document Status
                 if (!empty($data['documents'])) {
                     foreach ($data['documents'] as $remoteDoc) {
-                        $doc = CarrierDocument::updateOrCreate(
-                            ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
-                            ['status' => $remoteDoc['status']]
-                        );
+                        $doc = CarrierDocument::where('carrier_id', $carrier->id)->where('type', $remoteDoc['type'])->first();
+                        if ($doc && $doc->status !== $remoteDoc['status']) {
+                            $doc->update(['status' => $remoteDoc['status'], 'is_notified' => false]);
+                        } else {
+                            $doc = CarrierDocument::updateOrCreate(
+                                ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
+                                ['status' => $remoteDoc['status']]
+                            );
+                        }
                         NotificationService::notifyDocumentStatus($doc, $silent);
                         $stats['docs_synced']++;
                     }

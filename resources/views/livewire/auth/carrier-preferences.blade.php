@@ -12,6 +12,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public $min_rate = '';
     public $signature = '';
     public $agreed = false;
+    public $isLocked = false;
 
     public function mount()
     {
@@ -20,6 +21,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $this->preferred_destination = $carrier->preferred_destination;
         $this->preferred_equipment = $carrier->preferred_equipment ?? 'Dry Van';
         $this->min_rate = $carrier->min_rate;
+        $this->isLocked = !empty($carrier->signature_path);
     }
 
     public function save()
@@ -94,7 +96,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                         </svg>
                     </div>
-                    <input wire:model="preferred_origin" type="text" placeholder="Preferred Origin" class="block w-full pl-14 pr-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white placeholder:text-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all font-bold text-sm">
+                    <input wire:model="preferred_origin" type="text" placeholder="Preferred Origin" {{ $isLocked ? 'disabled' : '' }} class="block w-full pl-14 pr-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white placeholder:text-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all font-bold text-sm disabled:opacity-50">
                 </div>
 
                 <div class="relative group">
@@ -104,7 +106,7 @@ new #[Layout('components.layouts.app')] class extends Component
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                         </svg>
                     </div>
-                    <input wire:model="preferred_destination" type="text" placeholder="Preferred Destination" class="block w-full pl-14 pr-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white placeholder:text-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all font-bold text-sm">
+                    <input wire:model="preferred_destination" type="text" placeholder="Preferred Destination" {{ $isLocked ? 'disabled' : '' }} class="block w-full pl-14 pr-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white placeholder:text-slate-700 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all font-bold text-sm disabled:opacity-50">
                 </div>
             </div>
 
@@ -113,7 +115,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-3">Equipment Type</label>
                     <div class="relative group">
-                        <select wire:model="preferred_equipment" class="block w-full px-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white focus:ring-2 focus:ring-blue-500/50 outline-none font-bold text-sm appearance-none cursor-pointer">
+                        <select wire:model="preferred_equipment" {{ $isLocked ? 'disabled' : '' }} class="block w-full px-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white focus:ring-2 focus:ring-blue-500/50 outline-none font-bold text-sm appearance-none cursor-pointer disabled:opacity-50">
                             <option value="Dry Van">Dry Van</option>
                             <option value="Reefer">Reefer</option>
                             <option value="Flatbed">Flatbed</option>
@@ -132,7 +134,7 @@ new #[Layout('components.layouts.app')] class extends Component
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-3">Min Rate ($/mile)</label>
                     <div class="relative group">
                         <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none text-blue-500 font-black italic">$</div>
-                        <input wire:model="min_rate" type="number" step="0.01" placeholder="0.00" class="block w-full pl-12 pr-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white focus:ring-2 focus:ring-blue-500/50 outline-none font-bold text-sm">
+                        <input wire:model="min_rate" type="number" step="0.01" placeholder="0.00" {{ $isLocked ? 'disabled' : '' }} class="block w-full pl-12 pr-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white focus:ring-2 focus:ring-blue-500/50 outline-none font-bold text-sm disabled:opacity-50">
                     </div>
                 </div>
             </div>
@@ -182,11 +184,14 @@ new #[Layout('components.layouts.app')] class extends Component
                         }
                     }
                  }" 
-                 @mousedown="submit()" @touchstart="submit()" @mouseup="submit()" @touchend="submit()">
+                 @mousedown="!$wire.get('isLocked') && submit()" @touchstart="!$wire.get('isLocked') && submit()" @mouseup="!$wire.get('isLocked') && submit()" @touchend="!$wire.get('isLocked') && submit()">
                 
                 <div class="flex items-center justify-between px-4">
                     <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sign Agreement</label>
-                    <button type="button" @click="clear()" class="text-[9px] font-black text-red-500/70 border border-red-500/20 px-2 py-1 rounded-lg uppercase tracking-widest hover:text-red-400 hover:border-red-400/30 transition-all">Clear</button>
+                    <button type="button" @click="clear()" x-show="!$wire.get('isLocked')" class="text-[9px] font-black text-red-500/70 border border-red-500/20 px-2 py-1 rounded-lg uppercase tracking-widest hover:text-red-400 hover:border-red-400/30 transition-all">Clear</button>
+                    @if($isLocked)
+                        <span class="text-[9px] font-black text-green-500 bg-green-500/10 px-3 py-1.5 rounded-lg uppercase tracking-widest border border-green-500/30">Locked</span>
+                    @endif
                 </div>
                 
                 <div class="relative bg-slate-900 border border-white/5 rounded-[1.5rem] overflow-hidden min-h-[160px]" wire:ignore>
@@ -197,7 +202,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
 
                 <!-- Signature Agreement (v30 Smart Card) -->
-                <div @click="$wire.set('agreed', !$wire.get('agreed'))" class="p-6 flex items-start gap-4 bg-slate-800/40 border {{ $agreed ? 'border-blue-500/50' : 'border-white/5' }} rounded-[1.5rem] cursor-pointer group transition-all duration-300 hover:bg-slate-800/60 select-none">
+                <div @if(!$isLocked) @click="$wire.set('agreed', !$wire.get('agreed'))" @endif class="p-6 flex items-start gap-4 bg-slate-800/40 border {{ $agreed ? 'border-blue-500/50' : 'border-white/5' }} rounded-[1.5rem] {{ $isLocked ? 'cursor-default' : 'cursor-pointer' }} group transition-all duration-300 hover:bg-slate-800/60 select-none">
                     <div class="mt-1 flex-shrink-0">
                         <div class="w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shadow-lg {{ $agreed ? 'bg-blue-600 border-blue-600 shadow-blue-500/40' : 'bg-slate-900 border-white/10 group-hover:border-blue-500/30' }}">
                             @if($agreed)
@@ -226,8 +231,8 @@ new #[Layout('components.layouts.app')] class extends Component
             @endif
 
             <div class="pt-6">
-                <button type="submit" wire:loading.attr="disabled" class="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black italic uppercase tracking-[0.2em] text-sm shadow-2xl shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all relative overflow-hidden group flex items-center justify-center gap-3">
-                    <span wire:loading.remove wire:target="save" class="relative z-10">Finalize & Enter</span>
+                <button type="submit" wire:loading.attr="disabled" {{ $isLocked ? 'disabled' : '' }} class="w-full py-6 {{ $isLocked ? 'bg-slate-700' : 'bg-blue-600' }} text-white rounded-[2rem] font-black italic uppercase tracking-[0.2em] text-sm shadow-2xl {{ $isLocked ? 'shadow-none' : 'shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]' }} transition-all relative overflow-hidden group flex items-center justify-center gap-3">
+                    <span wire:loading.remove wire:target="save" class="relative z-10">{{ $isLocked ? 'Agreement Signed' : 'Finalize & Enter' }}</span>
                     <span wire:loading wire:target="save" class="relative z-10 flex items-center gap-2">
                         <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

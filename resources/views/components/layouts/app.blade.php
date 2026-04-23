@@ -453,6 +453,25 @@
             document.addEventListener('DOMContentLoaded', () => {
                 checkRuntime();
 
+                // v103: Handle Native Notification Clicks
+                if (window.Native && typeof window.Native.onNotificationClick === 'function') {
+                    window.Native.onNotificationClick((data) => {
+                        console.log('Notification Clicked:', data);
+                        if (data && data.url) {
+                            // Use window.location instead of wire:navigate for external/bridge-triggered jumps
+                            window.location.href = data.url;
+                        } else if (data && data.load_id) {
+                            window.location.href = '/loads';
+                        }
+                    });
+                } else {
+                    // Fallback: Listen for generic events from the bridge if the callback isn't registered
+                    window.addEventListener('notification-clicked', (event) => {
+                        const data = event.detail;
+                        if (data && data.url) window.location.href = data.url;
+                    });
+                }
+
                 // Handle Page Expired (419) errors gracefully
                 if (window.Livewire) {
                     Livewire.hook('request', ({ fail }) => {

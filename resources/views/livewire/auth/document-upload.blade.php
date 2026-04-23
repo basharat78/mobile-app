@@ -17,6 +17,7 @@ new #[Layout('components.layouts.app')] class extends Component
     public $pendingDocType = null;
     public $uploadStatus = '';
     public $syncing = []; // Track which docs are currently uploading
+    public $isProcessing = false; // Add global processing flag
     public $docsSynced = false; // v87: Track if cloud sync completed
 
     public function mount()
@@ -37,33 +38,20 @@ new #[Layout('components.layouts.app')] class extends Component
             if ($response->successful()) {
                 $data = $response->json();
 
-                // Sync document statuses from cloud to local DB
-                if (!empty($data['documents'])) {
-                    foreach ($data['documents'] as $remoteDoc) {
-                        $localDoc = \App\Models\CarrierDocument::where('carrier_id', $carrier->id)->where('type', $remoteDoc['type'])->first();
+                        // Sync document statuses from cloud to local DB
+                        if (!empty($data['documents'])) {
+                            foreach ($data['documents'] as $remoteDoc) {
+                                $localDoc = \App\Models\CarrierDocument::where('carrier_id', $carrier->id)->where('type', $remoteDoc['type'])->first();
 
-                        // Notify if status CHANGED
-                        if ($localDoc && $localDoc->status !== $remoteDoc['status']) {
-                            $docName = ucfirst(str_replace('_', ' ', $remoteDoc['type']));
-                            $statusText = strtoupper($remoteDoc['status']);
-                            \Illuminate\Support\Facades\Log::info("Triggering Document {$statusText} Notification", ['type' => $remoteDoc['type']]);
-                            \Vendor\LocalNotification\Facades\LocalNotification::show(
-                                "Document {$statusText}", 
-                                "Your {$docName} has been {$remoteDoc['status']}.",
-                                ['channelId' => 'status_updates', 'badge' => 1]
-                            );
+                                \App\Models\CarrierDocument::updateOrCreate(
+                                    ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
+                                    [
+                                        'status' => $remoteDoc['status'],
+                                        'file_path' => $localDoc->file_path ?? ('cloud_synced/' . $remoteDoc['type']),
+                                    ]
+                                );
+                            }
                         }
-
-
-                        \App\Models\CarrierDocument::updateOrCreate(
-                            ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
-                            [
-                                'status' => $remoteDoc['status'],
-                                'file_path' => $localDoc->file_path ?? ('cloud_synced/' . $remoteDoc['type']),
-                            ]
-                        );
-                    }
-                }
 
                 $this->docsSynced = true;
             } else {
@@ -79,6 +67,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function pickFromGallery($type)
     {
+        if ($this->isProcessing) return;
+        $this->isProcessing = true;
+
         $this->pendingDocType = $type;
         session()->put('pending_doc_type', $type);
 
@@ -89,6 +80,9 @@ new #[Layout('components.layouts.app')] class extends Component
 
     public function scanWithCamera($type)
     {
+        if ($this->isProcessing) return;
+        $this->isProcessing = true;
+
         $this->pendingDocType = $type;
         session()->put('pending_doc_type', $type);
 
@@ -151,6 +145,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         // Sync to remote Hostinger MySQL via API
         try {
+            $this->isProcessing = true;
             $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/documents/upload';
 
             $httpRequest = \Illuminate\Support\Facades\Http::timeout(30);
@@ -197,12 +192,20 @@ new #[Layout('components.layouts.app')] class extends Component
         }
 
         session()->forget('pending_doc_type');
+        $this->isProcessing = false;
         $this->uploadStatus = ucfirst(str_replace('_', ' ', $type)) . ' uploaded successfully!';
     }
 };
 ?>
 
 <div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncDocStatuses">
+    {{-- Global Loading Overlay --}}
+    <div wire:loading wire:target="saveDocument, pickFromGallery, scanWithCamera" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+        <div class="flex flex-col items-center gap-4">
+            <div class="w-16 h-16 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin"></div>
+            <p class="text-white font-black uppercase tracking-widest text-xs italic">Processing Document...</p>
+        </div>
+    </div>
     <div class="w-full max-w-md mx-auto space-y-10">
         <div class="space-y-2">
             <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none text-center">Fleet Docs</h1>
@@ -305,18 +308,26 @@ new #[Layout('components.layouts.app')] class extends Component
                         @else
                             {{-- Missing or Rejected: Buttons active --}}
                             <div class="grid grid-cols-2 gap-4">
-                                <button wire:click="pickFromGallery('{{ $doc }}')" class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 group/btn overflow-hidden relative">
+                                <button wire:click="pickFromGallery('{{ $doc }}')" 
+                                        wire:loading.attr="disabled"
+                                        class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 group/btn overflow-hidden relative disabled:opacity-50">
                                     <span wire:loading.remove wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">{{ $isRejected ? 'Re-upload' : 'Upload' }}</span>
                                     <span wire:loading wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">...</span>
                                     <div class="absolute inset-0 bg-white/5 translate-y-full group-hover/btn:translate-y-0 transition-transform"></div>
                                 </button>
-                                <button wire:click="scanWithCamera('{{ $doc }}')" class="flex items-center justify-center py-4 px-4 {{ $isRejected ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/30' }} rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all gap-2 shadow-lg active:scale-95 group/btn overflow-hidden relative">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 relative z-10">
+                                <button wire:click="scanWithCamera('{{ $doc }}')" 
+                                        wire:loading.attr="disabled"
+                                        class="flex items-center justify-center py-4 px-4 {{ $isRejected ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/30' }} rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all gap-2 shadow-lg active:scale-95 group/btn overflow-hidden relative disabled:opacity-50">
+                                    <svg wire:loading.remove wire:target="scanWithCamera('{{ $doc }}')" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 relative z-10">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
                                     </svg>
                                     <span wire:loading.remove wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10">Scan</span>
-                                    <span wire:loading wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10">...</span>
+                                    <span wire:loading wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10 flex items-center gap-1">
+                                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
+                                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                                    </span>
                                 </button>
                             </div>
                         @endif

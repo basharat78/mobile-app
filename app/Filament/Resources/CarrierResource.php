@@ -6,6 +6,7 @@ use App\Filament\Resources\CarrierResource\Pages;
 use App\Models\Carrier;
 use Filament\Forms;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -26,7 +27,7 @@ class CarrierResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Section::make('Account Association')
+                Section::make('Account Association')
                     ->schema([
                         Forms\Components\Select::make('user_id')
                             ->relationship('user', 'name')
@@ -38,7 +39,7 @@ class CarrierResource extends Resource
                             ->searchable(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Carrier Details')
+                Section::make('Carrier Details')
                     ->schema([
                         Forms\Components\Select::make('status')
                             ->options([
@@ -52,7 +53,7 @@ class CarrierResource extends Resource
                             ->disabled(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Preferences')
+                Section::make('Preferences')
                     ->schema([
                         Forms\Components\TextInput::make('preferred_origin'),
                         Forms\Components\TextInput::make('preferred_destination'),
@@ -126,8 +127,22 @@ class CarrierResource extends Resource
                             ->success()
                             ->send();
                     }),
-                Actions\EditAction::make(),
-                Actions\DeleteAction::make(),
+                Actions\Action::make('unassign_dispatcher')
+                    ->label('Unassign')
+                    ->icon('heroicon-o-user-minus')
+                    ->color('danger')
+                    ->visible(fn (Carrier $record): bool => !empty($record->dispatcher_id))
+                    ->requiresConfirmation()
+                    ->modalHeading('Unassign Dispatcher')
+                    ->modalDescription('Are you sure you want to unassign this carrier from their dispatcher?')
+                    ->action(function (Carrier $record): void {
+                        $record->update(['dispatcher_id' => null]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Dispatcher Unassigned')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
                 Actions\BulkActionGroup::make([
@@ -148,7 +163,6 @@ class CarrierResource extends Resource
         return [
             'index' => Pages\ListCarriers::route('/'),
             'create' => Pages\CreateCarrier::route('/create'),
-            'edit' => Pages\EditCarrier::route('/{record}/edit'),
         ];
     }
 }

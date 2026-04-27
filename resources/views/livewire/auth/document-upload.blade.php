@@ -220,20 +220,6 @@ new #[Layout('components.layouts.app')] class extends Component
 ?>
 
 <div class="px-6 py-12 space-y-10 relative z-10" wire:poll.30s="syncDocStatuses">
-    {{-- Global Loading Overlay --}}
-    {{-- Global Loading Overlay (v94: Enhanced Centering) --}}
-    <div wire:loading wire:target="saveDocument, pickFromGallery, scanWithCamera" 
-         class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-lg animate-fade-in"
-         style="height: 100vh; width: 100vw;">
-        <div class="flex flex-col items-center justify-center text-center px-10">
-            <div class="relative mb-8">
-                <div class="w-20 h-20 border-[6px] border-blue-500/10 border-t-blue-500 rounded-full animate-spin shadow-[0_0_40px_rgba(59,130,246,0.3)]"></div>
-                <div class="absolute inset-0 bg-blue-500/5 blur-2xl rounded-full"></div>
-            </div>
-            <h2 class="text-white font-black uppercase tracking-[0.4em] text-sm italic animate-pulse">Processing Document</h2>
-            <p class="text-blue-400/60 font-bold uppercase tracking-[0.2em] text-[9px] mt-4">Syncing with dispatcher terminal...</p>
-        </div>
-    </div>
     <div class="w-full max-w-md mx-auto space-y-10">
         <div class="space-y-2">
             <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none text-center">Fleet Docs</h1>

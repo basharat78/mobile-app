@@ -28,6 +28,14 @@ new #[Layout('components.layouts.app')] class extends Component
         // Ready
     }
 
+    public function updated($propertyName)
+    {
+        $this->validateOnly($propertyName, [
+            'email' => 'required|email:rfc,dns|unique:users,email',
+            'phone' => 'required|unique:users,phone',
+        ]);
+    }
+
     public function signup()
     {
         \Illuminate\Support\Facades\Log::info('Signup attempt started', [
@@ -40,7 +48,7 @@ new #[Layout('components.layouts.app')] class extends Component
             $this->validate([
                 'name' => 'required|string|max:255',
                 'company_name' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email',
+                'email' => 'required|email:rfc,dns|unique:users,email',
                 'phone' => 'required|unique:users,phone',
                 'password' => 'required|min:8|confirmed',
                 'role' => 'required|in:carrier,dispatcher',

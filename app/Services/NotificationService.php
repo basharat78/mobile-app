@@ -34,14 +34,14 @@ class NotificationService
                         'data' => [
                             'type' => 'load_details',
                             'load_id' => $load->id,
-                            'url' => '/loads' // Or specific load URL if implemented
+                            'url' => '/loads' 
                         ]
                     ]
                 );
+                
+                Cache::put($lockKey, true, now()->addMinutes(5));
+                $load->updateQuietly(['is_notified' => true]);
             }
-
-            Cache::put($lockKey, true, now()->addMinutes(5));
-            $load->updateQuietly(['is_notified' => true]);
         }
     }
 
@@ -76,10 +76,10 @@ class NotificationService
                         ]
                     ]
                 );
+                
+                Cache::put($lockKey, true, now()->addMinutes(5));
+                $request->updateQuietly(['is_notified' => true]);
             }
-
-            Cache::put($lockKey, true, now()->addMinutes(5));
-            $request->updateQuietly(['is_notified' => true]);
         }
     }
 
@@ -111,10 +111,10 @@ class NotificationService
                         ]
                     ]
                 );
+                
+                Cache::put($lockKey, true, now()->addMinutes(5));
+                $carrier->updateQuietly(['is_notified' => true]);
             }
-
-            Cache::put($lockKey, true, now()->addMinutes(5));
-            $carrier->updateQuietly(['is_notified' => true]);
         }
     }
 
@@ -148,10 +148,10 @@ class NotificationService
                         ]
                     ]
                 );
-            }
 
-            Cache::put($lockKey, true, now()->addMinutes(5));
-            $document->updateQuietly(['is_notified' => true]);
+                Cache::put($lockKey, true, now()->addMinutes(5));
+                $document->updateQuietly(['is_notified' => true]);
+            }
         }
     }
 }

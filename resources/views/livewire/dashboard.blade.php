@@ -108,24 +108,85 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
             </div>
 
-            <div class="p-10 bg-slate-800/20 border border-white/5 rounded-[3rem] shadow-2xl relative overflow-hidden">
-                <div class="flex flex-col items-center text-center space-y-8 relative z-10">
-                    <div class="w-24 h-24 rounded-full bg-slate-900 border-2 border-dashed border-slate-700 flex items-center justify-center animate-spin-slow">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-slate-500">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
-                    </div>
-                    
-                    <div class="space-y-3">
-                        <h2 class="text-2xl font-black text-white italic uppercase tracking-tighter">{{ $s['status'] }} Verification</h2>
-                        <p class="text-slate-400 text-sm font-medium leading-relaxed max-w-[280px]">Our dispatch team is currently reviewing your documents and fleet authority.</p>
+            <div class="p-8 bg-slate-800/20 border border-white/5 rounded-[3rem] shadow-2xl relative overflow-hidden">
+                <div class="space-y-8 relative z-10">
+                    <div class="space-y-1">
+                        <h2 class="text-xl font-black text-white italic uppercase tracking-tighter">Onboarding Progress</h2>
+                        <p class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Complete all steps to start hauling</p>
                     </div>
 
-                    <div class="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-600 animate-pulse-width"></div>
-                    </div>
+                    <div class="space-y-4">
+                        @php
+                            $carrier = Auth::user()->carrier;
+                            $hasDocs = $carrier->insurance_path || $carrier->authority_path || $carrier->w9_path;
+                            $hasPrefs = !empty($carrier->signature_path);
+                            $isApproved = $carrier->status === 'approved';
+                        @endphp
 
-                    <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest">Typical review time: 4-6 hours</p>
+                        <!-- Step 1: Account Created -->
+                        <div class="flex items-center gap-4">
+                            <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs font-black text-white uppercase tracking-tight">Step 1: Account Setup</p>
+                                <p class="text-[10px] text-slate-500 font-medium">Profile and carrier info completed</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Documents -->
+                        <a href="/document-upload" wire:navigate class="flex items-center gap-4 group/step">
+                            <div class="w-8 h-8 rounded-full {{ $hasDocs ? 'bg-green-500/20 text-green-500' : 'bg-blue-600/20 text-blue-500 animate-pulse' }} flex items-center justify-center shrink-0 transition-transform group-hover/step:scale-110">
+                                @if($hasDocs)
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                @else
+                                    <span class="text-[10px] font-black">02</span>
+                                @endif
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs font-black {{ $hasDocs ? 'text-white' : 'text-blue-500' }} uppercase tracking-tight group-hover/step:text-blue-400 transition-colors">Step 2: Upload Documents</p>
+                                <p class="text-[10px] text-slate-500 font-medium">{{ $hasDocs ? 'Documentation received' : 'Insurance, W9, and Authority required' }}</p>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-3 h-3 text-slate-700 group-hover/step:text-blue-500 transition-colors">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </a>
+
+                        <!-- Step 3: Preferences -->
+                        <a href="/carrier-preferences" wire:navigate class="flex items-center gap-4 group/step">
+                            <div class="w-8 h-8 rounded-full {{ $hasPrefs ? 'bg-green-500/20 text-green-500' : 'bg-slate-900 text-slate-600' }} flex items-center justify-center shrink-0 transition-transform group-hover/step:scale-110">
+                                @if($hasPrefs)
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                @else
+                                    <span class="text-[10px] font-black">03</span>
+                                @endif
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs font-black {{ $hasPrefs ? 'text-white' : 'text-slate-500' }} uppercase tracking-tight group-hover/step:text-blue-400 transition-colors">Step 3: Dispatch Agreement</p>
+                                <p class="text-[10px] text-slate-500 font-medium">Route preferences & signature</p>
+                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-3 h-3 text-slate-700 group-hover/step:text-blue-500 transition-colors">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </a>
+
+                        <!-- Step 4: Final Review -->
+                        <div class="flex items-center gap-4 opacity-50">
+                            <div class="w-8 h-8 rounded-full bg-slate-900 text-slate-600 flex items-center justify-center shrink-0">
+                                <span class="text-[10px] font-black">04</span>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-xs font-black text-slate-500 uppercase tracking-tight">Step 4: Admin Approval</p>
+                                <p class="text-[10px] text-slate-500 font-medium">Final verification by our team</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl"></div>

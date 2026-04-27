@@ -40,6 +40,9 @@ class SyncService
             self::recoverPendingRegistration($user);
         }
 
+        // --- 0b. DOCUMENT SYNC RECOVERY (v106) ---
+        self::syncPendingDocuments($user);
+
 
         try {
             $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
@@ -55,6 +58,11 @@ class SyncService
                 
                 $syncedIds = [];
                 foreach ($remoteLoads as $l) {
+                    $existingLoad = Load::find($l['id']);
+                    if ($existingLoad && $existingLoad->status !== $l['status']) {
+                        $l['is_notified'] = false; // Reset if status changed
+                    }
+
                     $load = Load::updateOrCreate(
                         ['id' => $l['id']],
                         [
@@ -75,6 +83,7 @@ class SyncService
                             'broker_name' => $l['broker_name'] ?? 'Direct',
                             'notes' => $l['notes'] ?? '',
                             'status' => $l['status'],
+                            'is_notified' => $l['is_notified'] ?? ($existingLoad ? $existingLoad->is_notified : false)
                         ]
                     );
                     
@@ -130,11 +139,13 @@ class SyncService
                         $doc = CarrierDocument::where('carrier_id', $carrier->id)->where('type', $remoteDoc['type'])->first();
                         if ($doc && $doc->status !== $remoteDoc['status']) {
                             $doc->update(['status' => $remoteDoc['status'], 'is_notified' => false]);
-                        } else {
-                            $doc = CarrierDocument::updateOrCreate(
-                                ['carrier_id' => $carrier->id, 'type' => $remoteDoc['type']],
-                                ['status' => $remoteDoc['status']]
-                            );
+                        } elseif (!$doc) {
+                            $doc = CarrierDocument::create([
+                                'carrier_id' => $carrier->id,
+                                'type' => $remoteDoc['type'],
+                                'status' => $remoteDoc['status'],
+                                'is_notified' => false
+                            ]);
                         }
                         NotificationService::notifyDocumentStatus($doc, $silent);
                         $stats['docs_synced']++;
@@ -150,6 +161,50 @@ class SyncService
             Log::error("GlobalSync: Failed for {$email}. Error: " . $e->getMessage());
             Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [{$context}] Sync FAILED: " . $e->getMessage());
             return ['status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Retries failed document uploads.
+     */
+    protected static function syncPendingDocuments(User $user)
+    {
+        $carrier = $user->carrier;
+        // Find documents that might have failed to sync (status pending but no remote confirmation)
+        // For simplicity, we'll look for local docs that haven't been updated by remote in a while
+        // or we could add an 'is_synced' column.
+        $pendingDocs = CarrierDocument::where('carrier_id', $carrier->id)
+            ->where('status', 'pending')
+            ->where('created_at', '<', now()->subMinutes(5)) // Only retry after 5 mins to avoid race conditions
+            ->get();
+
+        if ($pendingDocs->isEmpty()) return;
+
+        Log::info("SyncService: Attempting Document Sync Recovery for {$user->email} (" . $pendingDocs->count() . " docs)");
+
+        foreach ($pendingDocs as $doc) {
+            try {
+                $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
+                $storagePath = storage_path('app/public/' . $doc->file_path);
+                
+                if (!file_exists($storagePath)) continue;
+
+                $response = Http::timeout(30)
+                    ->attach('file', file_get_contents($storagePath), basename($storagePath))
+                    ->post("{$baseUrl}/api/documents/upload", [
+                        'carrier_id' => $carrier->remote_id ?? $carrier->id,
+                        'type' => $doc->type,
+                        'user_name' => $user->name,
+                        'dispatcher_id' => $carrier->dispatcher_id,
+                        'is_retry' => true
+                    ]);
+
+                if ($response->successful()) {
+                    Log::info("SyncService: Document Recovery SUCCESS for {$doc->type}");
+                }
+            } catch (\Exception $e) {
+                Log::error("SyncService: Document Recovery ERROR for {$doc->type}: " . $e->getMessage());
+            }
         }
     }
 

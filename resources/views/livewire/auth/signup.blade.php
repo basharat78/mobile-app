@@ -18,29 +18,14 @@ new #[Layout('components.layouts.app')] class extends Component
     public $password_confirmation = '';
     public $role = 'carrier';
     public $terms = false;
-    public $db_status = 'checking';
-    public $debug_log = [];
     public $isProcessing = false;
     public $showSuccessModal = false;
     public $lastCloudResponse = '';
 
-    public function fetchLogs()
-    {
-        $this->debug_log = collect(explode("\n", \Illuminate\Support\Facades\File::get(storage_path('logs/laravel.log'))))
-            ->reverse()
-            ->take(5)
-            ->toArray();
-    }
 
     public function mount()
     {
-        try {
-            \Illuminate\Support\Facades\DB::connection()->getPdo();
-            $this->db_status = 'online';
-        } catch (\Exception $e) {
-            $this->db_status = 'offline';
-            \Illuminate\Support\Facades\Log::error('Database connection check failed', ['error' => $e->getMessage()]);
-        }
+        // Ready
     }
 
     public function signup()
@@ -103,43 +88,40 @@ new #[Layout('components.layouts.app')] class extends Component
                 }
             } catch (\Exception $e) { /* Catch & Log */ }
 
-            // --- CLOUD-FIRST REGISTRATION (v83) ---
-            $remoteId = null;
+            // --- CLOUD-FIRST REGISTRATION (v83 Restored) ---
             $this->lastCloudResponse .= "\nPhase 2: Attempting Cloud Sync...";
+            $remoteId = null;
 
             try {
                 $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/register';
-                $response = \Illuminate\Support\Facades\Http::timeout(15)
-                    ->post($apiUrl, [
-                        'name' => $this->name,
-                        'company_name' => $this->company_name,
-                        'email' => $this->email,
-                        'phone' => $this->phone,
-                        'password' => $this->password,
-                        'role' => $this->role,
-                    ]);
+                $response = \Illuminate\Support\Facades\Http::timeout(25)->post($apiUrl, [
+                    'name' => $this->name,
+                    'email' => $this->email,
+                    'phone' => $this->phone,
+                    'password' => $this->password,
+                    'company_name' => $this->company_name,
+                    'role' => $this->role,
+                ]);
 
                 if ($response->successful()) {
-                    $remoteData = $response->json();
-                    $remoteId = $remoteData['carrier_id'] ?? null;
-                    $this->db_status = 'synced';
+                    $data = $response->json();
+                    $remoteId = $data['carrier_id'] ?? null;
                     $this->lastCloudResponse .= "\nCloud Status: SUCCESS";
                 } elseif ($response->status() === 409 || $response->status() === 422) {
                     $conflict = $response->json();
-                    session()->flash('error', $conflict['message'] ?? 'Identity Conflict during registration. Account already exists.');
+                    session()->flash('error', $conflict['message'] ?? 'Identity Conflict. This account already exists on the network.');
                     $this->isProcessing = false;
                     return;
                 } else {
-                    $this->db_status = 'local_only';
-                    $this->lastCloudResponse .= "\nCloud Status: OFFLINE (Local Fallback)";
+                    $this->lastCloudResponse .= "\nCloud Status: OFFLINE (Queued)";
                 }
             } catch (\Exception $syncError) {
-                $this->db_status = 'local_only';
-                $this->lastCloudResponse .= "\nCloud Status: ERROR (Local Fallback)";
+                $this->lastCloudResponse .= "\nCloud Status: ERROR (Queued)";
+                \Illuminate\Support\Facades\Log::warning('Initial Cloud Sync Error', ['error' => $syncError->getMessage()]);
             }
 
-            // --- LOCAL DATA PERSISTENCE (Only if remote passed or offline fallback allowed) ---
-            // 1. Create user locally
+            // --- LOCAL DATA PERSISTENCE ---
+            // Now create locally using the remoteId if we have it
             $user = User::create([
                 'name' => $this->name,
                 'company_name' => $this->company_name,
@@ -152,13 +134,21 @@ new #[Layout('components.layouts.app')] class extends Component
             if ($this->role === 'carrier') {
                 $user->carrier()->create([
                     'status' => 'pending',
-                    'remote_id' => $remoteId
+                    'remote_id' => $remoteId,
+                    // Store registration data for recovery if sync was offline
+                    'pending_registration_data' => $remoteId ? null : json_encode([
+                        'name' => $this->name,
+                        'email' => $this->email,
+                        'phone' => $this->phone,
+                        'password' => $this->password,
+                        'company_name' => $this->company_name,
+                        'role' => $this->role,
+                    ])
                 ]);
             }
 
-            \Illuminate\Support\Facades\Log::info('Signup successful', ['user_id' => $user->id]);
-
             $this->showSuccessModal = true;
+            $this->isProcessing = false;
             $this->isProcessing = false;
 
             // Wait 2 seconds for the user to see the success pop alert (v80)
@@ -193,13 +183,6 @@ new #[Layout('components.layouts.app')] class extends Component
             <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase">Join Truck Zap</h1>
             <p class="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">Next-Gen Logistics Network</p>
             
-            <!-- Connection Status -->
-            <div class="flex items-center justify-center gap-2 mt-2">
-                <div class="w-2 h-2 rounded-full {{ $db_status === 'online' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : ($db_status === 'offline' ? 'bg-red-500' : 'bg-slate-500 animate-pulse') }}"></div>
-                <span class="text-[8px] font-black uppercase tracking-widest {{ $db_status === 'online' ? 'text-green-500' : ($db_status === 'offline' ? 'text-red-500' : 'text-slate-500') }}">
-                    DB {{ $db_status }}
-                </span>
-            </div>
         </div>
 
         <div class="p-10 space-y-10 bg-slate-800/20 border border-white/5 rounded-[3rem] shadow-2xl relative overflow-hidden">
@@ -320,106 +303,44 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
 
-        <!-- Real-time Debug Audit -->
-        <div class="mt-8 p-6 bg-black/40 rounded-3xl border border-white/10 space-y-4" wire:poll.20s="fetchLogs">
-            <h3 class="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping"></span>
-                Connection Diagnostics
-            </h3>
-            
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                    <p class="text-[8px] text-slate-500 uppercase font-black">API Sync</p>
-                    <p class="text-[10px] font-bold mt-1
-                        @if($db_status === 'synced') text-green-500
-                        @elseif($db_status === 'local_only') text-yellow-500
-                        @elseif($db_status === 'online') text-blue-500
-                        @else text-red-500
-                        @endif
-                    ">{{ strtoupper($db_status) }}</p>
-                </div>
 
-<!-- v80/v81 Pop Alerts (Modals) -->
-<div x-data="{ showProcessing: @entangle('isProcessing'), showSuccess: @entangle('showSuccessModal') }" 
-     class="relative z-[500]">
-    
-    <!-- Processing Modal -->
-    <template x-if="showProcessing && !showSuccess">
-        <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-10 text-center animate-fade-in">
-            <div class="relative mb-8">
-                <div class="w-24 h-24 bg-blue-600/20 rounded-[2rem] flex items-center justify-center border border-blue-500/30">
-                    <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    <!-- Login Pop Alerts (v84 Restored & Updated) -->
+    <div x-data="{ showProcessing: @entangle('isProcessing'), showSuccess: @entangle('showSuccessModal') }" 
+         class="relative z-[500]">
+        
+        <!-- Processing Modal -->
+        <template x-if="showProcessing && !showSuccess">
+            <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+                <div class="relative mb-8">
+                    <div class="w-24 h-24 bg-blue-600/20 rounded-[2rem] flex items-center justify-center border border-blue-500/30">
+                        <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    <div class="absolute -inset-4 bg-blue-500/10 blur-2xl rounded-full animate-pulse"></div>
+                </div>
+                <h2 class="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">Creating Account</h2>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Synchronizing with global freight network...</p>
+            </div>
+        </template>
+
+        <!-- Success Modal -->
+        <template x-if="showSuccess">
+            <div class="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl flex flex-col items-center justify-center p-10 text-center animate-bounce-in">
+                <div class="w-24 h-24 bg-green-500/20 rounded-[2rem] flex items-center justify-center border border-green-500/30 mb-8 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-10 h-10 text-green-500">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
                 </div>
-                <div class="absolute -inset-4 bg-blue-500/10 blur-2xl rounded-full animate-pulse"></div>
-            </div>
-            <h2 class="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">Securing Account</h2>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Verifying identity and joining cloud network...</p>
-        </div>
-    </template>
-
-    <!-- Success Modal -->
-    <template x-if="showSuccess">
-        <div class="fixed inset-0 bg-slate-900/95 backdrop-blur-2xl flex flex-col items-center justify-center p-10 text-center animate-bounce-in">
-            <div class="w-24 h-24 bg-green-500/20 rounded-[2rem] flex items-center justify-center border border-green-500/30 mb-8 shadow-[0_0_50px_rgba(34,197,94,0.3)]">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-10 h-10 text-green-500">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                </svg>
-            </div>
-            <h2 class="text-3xl font-black text-white italic uppercase tracking-tighter mb-2">Welcome Aboard</h2>
-            <p class="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em] mb-8">Registration Successful</p>
-            <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
-                <div class="h-full bg-green-500 animate-progress"></div>
-            </div>
-            <p class="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest">Entering Dashboard...</p>
-        </div>
-    </template>
-</div>
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5" wire:ignore>
-                    <p class="text-[8px] text-slate-500 uppercase font-black">Bridge Status</p>
-                    <p class="text-[10px] font-bold mt-1" id="bridge-status">Detecting...</p>
+                <h2 class="text-3xl font-black text-white italic uppercase tracking-tighter mb-2">Signing you in</h2>
+                <p class="text-[10px] text-blue-400 font-black uppercase tracking-[0.3em] mb-8">Registration Complete</p>
+                <div class="w-48 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div class="h-full bg-green-500 animate-progress"></div>
                 </div>
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5" wire:ignore>
-                    <p class="text-[8px] text-slate-500 uppercase font-black">Runtime Service</p>
-                    <p class="text-[10px] font-bold mt-1 text-slate-500" id="runtime-status">Verifying...</p>
-                </div>
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5 col-span-2">
-                    <p class="text-[8px] text-slate-500 uppercase font-black">Remote API URL</p>
-                    <p class="text-[10px] font-bold mt-1 text-blue-400 truncate">{{ env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com' }}</p>
-                </div>
-                <div class="bg-blue-500/5 p-3 rounded-xl border border-blue-500/10 col-span-2">
-                    <p class="text-[8px] text-blue-500 uppercase font-black">Cloud Auditor (v83)</p>
-                    <div class="mt-2 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[7px] text-slate-500 uppercase font-black">Live Pulse Stream</span>
-                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                        </div>
-                        <p class="text-[9px] font-mono text-slate-300 bg-black/40 p-3 rounded-xl whitespace-pre-wrap break-all border border-white/5 shadow-inner leading-relaxed">{{ $lastCloudResponse }}</p>
-                    </div>
-                </div>
+                <p class="mt-8 text-[9px] text-slate-500 font-bold uppercase tracking-widest">Entering Hub...</p>
             </div>
-
-            <div class="space-y-2">
-                <p class="text-[8px] text-slate-500 uppercase font-black">Latest Server Event</p>
-                <div class="text-[9px] font-mono text-slate-300 bg-black/50 p-3 rounded-xl overflow-x-auto whitespace-pre">
-@foreach($debug_log as $log)
-{{ $log }}
-@endforeach
-                </div>
-            </div>
-        </div>
+        </template>
     </div>
 </div>
 
-<script>
-    /**
-     * Local Diagnostic Override (v23)
-     * Let the global app.blade.php handle the heavy lifting,
-     * but we ensure the local elements are ready.
-     */
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Signup Diagnostic Panel Ready');
-    });
-</script>

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Notification;
 use Native\Mobile\Facades\Camera;
 use Native\Mobile\Attributes\OnNative;
 use Native\Mobile\Events\Camera\PhotoTaken;
+use Native\Mobile\Events\Camera\PhotoCancelled;
 use Native\Mobile\Events\Gallery\MediaSelected;
 
 new #[Layout('components.layouts.app')] class extends Component
@@ -95,23 +96,43 @@ new #[Layout('components.layouts.app')] class extends Component
     public function handlePhotoTaken(string $path, string $mimeType = 'image/jpeg', ?string $id = null)
     {
         $type = session()->get('pending_doc_type');
-        if (!$type) return;
+        if (!$type) {
+            $this->isProcessing = false;
+            return;
+        }
 
         $this->syncing[$type] = true;
         $this->saveDocument($type, $path);
         unset($this->syncing[$type]);
     }
 
+    #[OnNative(PhotoCancelled::class)]
+    public function handlePhotoCancelled(?string $id = null)
+    {
+        $this->isProcessing = false;
+        session()->forget('pending_doc_type');
+    }
+
     #[OnNative(MediaSelected::class)]
     public function handleMediaSelected(bool $success, array $files = [], int $count = 0, ?string $error = null, bool $cancelled = false, ?string $id = null)
     {
-        if (!$success || $cancelled || empty($files)) return;
+        if (!$success || $cancelled || empty($files)) {
+            $this->isProcessing = false;
+            session()->forget('pending_doc_type');
+            return;
+        }
 
         $type = session()->get('pending_doc_type');
-        if (!$type) return;
+        if (!$type) {
+            $this->isProcessing = false;
+            return;
+        }
 
         $filePath = $files[0]['path'] ?? ($files[0] ?? null);
-        if (!$filePath) return;
+        if (!$filePath) {
+            $this->isProcessing = false;
+            return;
+        }
 
         $this->syncing[$type] = true;
         $this->saveDocument($type, $filePath);
@@ -200,10 +221,13 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncDocStatuses">
     {{-- Global Loading Overlay --}}
-    <div wire:loading wire:target="saveDocument, pickFromGallery, scanWithCamera" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-        <div class="flex flex-col items-center gap-4">
-            <div class="w-16 h-16 border-4 border-blue-500/20 border-t-blue-600 rounded-full animate-spin"></div>
-            <p class="text-white font-black uppercase tracking-widest text-xs italic">Processing Document...</p>
+    {{-- Global Loading Overlay (v91: Centered Fix) --}}
+    <div wire:loading wire:target="saveDocument, pickFromGallery, scanWithCamera" 
+         class="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md animate-fade-in">
+        <div class="relative flex flex-col items-center justify-center">
+            <div class="w-20 h-20 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin mb-6 shadow-[0_0_30px_rgba(59,130,246,0.2)]"></div>
+            <h2 class="text-white font-black uppercase tracking-[0.3em] text-xs italic animate-pulse">Processing Document</h2>
+            <p class="text-slate-500 font-bold uppercase tracking-widest text-[8px] mt-2">Uploading to secure server...</p>
         </div>
     </div>
     <div class="w-full max-w-md mx-auto space-y-10">
@@ -310,24 +334,45 @@ new #[Layout('components.layouts.app')] class extends Component
                             <div class="grid grid-cols-2 gap-4">
                                 <button wire:click="pickFromGallery('{{ $doc }}')" 
                                         wire:loading.attr="disabled"
+                                        :disabled="$wire.isProcessing || @js(isset($syncing[$doc]))"
                                         class="flex items-center justify-center py-4 px-4 glass rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 group/btn overflow-hidden relative disabled:opacity-50">
-                                    <span wire:loading.remove wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">{{ $isRejected ? 'Re-upload' : 'Upload' }}</span>
-                                    <span wire:loading wire:target="pickFromGallery('{{ $doc }}')" class="relative z-10">...</span>
+                                    <span class="relative z-10">
+                                        @if(isset($syncing[$doc]))
+                                            Syncing...
+                                        @elseif($isProcessing && $pendingDocType === $doc)
+                                            ...
+                                        @else
+                                            {{ $isRejected ? 'Re-upload' : 'Upload' }}
+                                        @endif
+                                    </span>
                                     <div class="absolute inset-0 bg-white/5 translate-y-full group-hover/btn:translate-y-0 transition-transform"></div>
                                 </button>
                                 <button wire:click="scanWithCamera('{{ $doc }}')" 
                                         wire:loading.attr="disabled"
+                                        :disabled="$wire.isProcessing || @js(isset($syncing[$doc]))"
                                         class="flex items-center justify-center py-4 px-4 {{ $isRejected ? 'bg-red-600 hover:bg-red-500 shadow-red-500/30' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/30' }} rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all gap-2 shadow-lg active:scale-95 group/btn overflow-hidden relative disabled:opacity-50">
-                                    <svg wire:loading.remove wire:target="scanWithCamera('{{ $doc }}')" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 relative z-10">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
-                                    </svg>
-                                    <span wire:loading.remove wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10">Scan</span>
-                                    <span wire:loading wire:target="scanWithCamera('{{ $doc }}')" class="relative z-10 flex items-center gap-1">
-                                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
-                                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                                        <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                                    @if(!isset($syncing[$doc]) && !($isProcessing && $pendingDocType === $doc))
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 relative z-10">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                                        </svg>
+                                    @endif
+                                    <span class="relative z-10">
+                                        @if(isset($syncing[$doc]))
+                                            Uploading...
+                                        @elseif($isProcessing && $pendingDocType === $doc)
+                                            Opening...
+                                        @else
+                                            Scan
+                                        @endif
                                     </span>
+                                    @if(isset($syncing[$doc]) || ($isProcessing && $pendingDocType === $doc))
+                                        <span class="relative z-10 flex items-center gap-1">
+                                            <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
+                                            <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                                            <div class="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                                        </span>
+                                    @endif
                                 </button>
                             </div>
                         @endif

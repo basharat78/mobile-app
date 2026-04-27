@@ -114,19 +114,15 @@ new #[Layout('components.layouts.app')] class extends Component
             <div class="glass-morphism border border-white/5 rounded-[3rem] p-8 space-y-6">
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-3">Equipment Type</label>
-                    <div class="relative group">
-                        <select wire:model="preferred_equipment" {{ $isLocked ? 'disabled' : '' }} class="block w-full px-6 py-5 bg-slate-900 border border-white/10 rounded-2xl text-white focus:ring-2 focus:ring-blue-500/50 outline-none font-bold text-sm appearance-none cursor-pointer disabled:opacity-50">
-                            <option value="Dry Van">Dry Van</option>
-                            <option value="Reefer">Reefer</option>
-                            <option value="Flatbed">Flatbed</option>
-                            <option value="Step Deck">Step Deck</option>
-                            <option value="Box Truck">Box Truck</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-6 flex items-center pointer-events-none text-slate-600 transition-transform group-hover:translate-y-0.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4 text-blue-500">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                            </svg>
-                        </div>
+                    <div class="grid grid-cols-2 gap-3" x-data="{ selected: @entangle('preferred_equipment') }">
+                        @foreach(['Dry Van', 'Reefer', 'Flatbed', 'Step Deck', 'Box Truck', 'Hotshot'] as $type)
+                            <button type="button" 
+                                    @click="selected = '{{ $type }}'"
+                                    {{ $isLocked ? 'disabled' : '' }}
+                                    class="flex items-center justify-center py-4 px-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border {{ $preferred_equipment === $type ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20 scale-[1.02]' : 'bg-slate-900 text-slate-500 border-white/5 hover:border-white/10 hover:text-slate-300' }} disabled:opacity-50 disabled:scale-100">
+                                {{ $type }}
+                            </button>
+                        @endforeach
                     </div>
                 </div>
                 

@@ -1,7 +1,5 @@
 @php
-    // v93: Removed blocking DB::getPdo() check to fix 2-minute app launch delay.
-    // The database status is now assumed online for the initial render.
-    $db_online = true; 
+    // v93: Optimized boot (Diagnostics Removed)
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -11,6 +9,11 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'TruckZap') }}</title>
+
+        <!-- Status Bar Theming -->
+        <meta name="color-scheme" content="dark">
+        <meta name="theme-color" content="#0f172a">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
         <!-- NativePHP Mobile Bridge -->
         <script src="/native.js?v=1.0.0"></script>
@@ -49,9 +52,9 @@
                 --sat: env(safe-area-inset-top);
                 --sab: env(safe-area-inset-bottom);
             }
-            .safe-top { top: calc(1.5rem + var(--sat, 0px)); }
+            .safe-top { top: calc(2.5rem + var(--sat, 0px)); }
             .safe-bottom { bottom: calc(2.2rem + var(--sab, 0px)); }
-            .safe-pt { padding-top: calc(8.5rem + var(--sat, 0px)); }
+            .safe-pt { padding-top: calc(9.5rem + var(--sat, 0px)); }
         </style>
     </head>
     <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: !sessionStorage.getItem('splash_shown'), isOnline: navigator.onLine, loggingOut: false }" x-init="
@@ -71,16 +74,6 @@
                 <div class="absolute -bottom-[10%] right-[10%] w-[40%] h-[40%] bg-indigo-600/5 rounded-full"></div>
             </div>
             
-            <!-- Global Cloud Sync Info (v27) -->
-            <div class="fixed top-6 right-6 z-50 flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 border border-white/5 rounded-full">
-                @if(Auth::user()->carrier->remote_id)
-                    <div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                    <span class="text-[8px] font-black text-white/50 uppercase tracking-widest">Cloud Linked</span>
-                @else
-                    <div class="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
-                    <span class="text-[8px] font-black text-white/50 uppercase tracking-widest">Locally Cached</span>
-                @endif
-            </div>
         @endif @endauth
 
         <!-- Splash Screen Overlay -->
@@ -198,15 +191,6 @@
                                 </svg>
                             </button>
                         @endif
-                        <div class="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
-                            <div class="w-1.5 h-1.5 rounded-full {{ $db_online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 animate-pulse' }}"></div>
-                            <span class="text-[7px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">MySQL:{{ $db_online ? 'SYNC' : 'LOST' }}</span>
-                            <button onclick="window.location.reload(true)" class="ml-1 p-0.5 hover:bg-white/10 rounded transition-colors" title="Force Sync">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-2 h-2 text-slate-500">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                </svg>
-                            </button>
-                        </div>
                         <div class="flex flex-col">
                             <h2 class="text-xs font-black italic text-white uppercase tracking-tighter leading-none">Truck Zap</h2>
                             <span class="text-[8px] font-bold text-blue-400 uppercase tracking-widest mt-0.5">Carrier Hub</span>
@@ -214,40 +198,6 @@
                     </div>
 
                     <div class="flex items-center gap-3">
-                        <!-- Connection Indicator (v78) -->
-                        <div class="flex items-center gap-2 px-2.5 py-1.5 bg-white/5 rounded-xl border border-white/10">
-                            <!-- Network Status -->
-                            <div class="flex items-center gap-1">
-                                <template x-if="isOnline">
-                                    <div class="flex items-center gap-1">
-                                        <div class="w-1 h-1 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                                        <span class="text-[7px] font-black uppercase tracking-widest text-blue-400">NET:ON</span>
-                                    </div>
-                                </template>
-                                <template x-if="!isOnline">
-                                    <div class="flex items-center gap-1">
-                                        <div class="w-1 h-1 rounded-full bg-red-500 animate-pulse"></div>
-                                        <span class="text-[7px] font-black uppercase tracking-widest text-red-500">NET:OFF</span>
-                                    </div>
-                                </template>
-                            </div>
-                            
-                            <div class="w-px h-2 bg-white/10"></div>
-
-                            <!-- System Status (MySQL) -->
-                            <div class="flex items-center gap-1">
-                                <div class="w-1 h-1 rounded-full {{ $db_online ? 'bg-green-500' : 'bg-red-500 animate-pulse' }}"></div>
-                                <span class="text-[7px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">
-                                    {{ $db_online ? 'SYS:ON' : 'SYS:OFF' }}
-                                </span>
-                            </div>
-                            
-                            <button onclick="window.location.reload(true)" class="ml-1 p-0.5 hover:bg-white/10 rounded transition-colors" title="Force Sync">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-2 h-2 text-slate-500">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                </svg>
-                            </button>
-                        </div>
 
                         <div class="w-8 h-8 rounded-full bg-blue-gradient p-[1px] shadow-lg shadow-blue-500/20">
                         <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black italic text-white uppercase">
@@ -268,13 +218,6 @@
                             </button>
                         @endif
                         <div class="flex items-center gap-3">
-                            <!-- Connection Indicator -->
-                            <div class="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
-                                <div class="w-1.5 h-1.5 rounded-full {{ $db_online ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-red-500 animate-pulse' }}"></div>
-                                <span class="text-[8px] font-black uppercase tracking-widest {{ $db_online ? 'text-green-500' : 'text-red-500' }}">
-                                    {{ $db_online ? 'DB:Online' : 'DB:Offline' }}
-                                </span>
-                            </div>
                             <h2 class="text-sm font-black italic text-white uppercase tracking-tighter">Truck Zap</h2>
                         </div>
                     </div>
@@ -440,35 +383,8 @@
                 bridgeElement.className = 'text-[10px] font-bold mt-1 text-green-500';
             }
         </script>
-        
         <script>
-            /**
-             * Runtime Diagnostic Check
-             * Verifies if the PHP binary inside the APK supports nativephp_call
-             */
-            const checkRuntime = async () => {
-                const runtimeElement = document.getElementById('runtime-status');
-                if (!runtimeElement) return;
-
-                try {
-                    const response = await fetch('/api/_native/api/diagnostic');
-                    const data = await response.json();
-                    
-                    if (data.runtime === 'OK') {
-                        runtimeElement.innerText = 'RUNTIME: OK';
-                        runtimeElement.className = 'text-[10px] font-bold mt-1 text-blue-400';
-                    } else {
-                        runtimeElement.innerText = 'RUNTIME: INCOMPATIBLE';
-                        runtimeElement.className = 'text-[10px] font-bold mt-1 text-red-500';
-                    }
-                } catch (e) {
-                    console.error('Runtime check failed:', e);
-                }
-            };
-
             document.addEventListener('DOMContentLoaded', () => {
-                checkRuntime();
-
                 // v103: Handle Native Notification Clicks
                 if (window.Native && typeof window.Native.onNotificationClick === 'function') {
                     window.Native.onNotificationClick((data) => {
@@ -500,17 +416,6 @@
                         });
                     });
                 }
-                
-                // Secondary check for the bridge UI status
-                setTimeout(() => {
-                    const bridgeElement = document.getElementById('bridge-status');
-                    if (bridgeElement && bridgeElement.innerText.includes('Detecting')) {
-                        if (window.Native) {
-                            bridgeElement.innerText = 'BRIDGE: ACTIVE';
-                            bridgeElement.className = 'text-[10px] font-bold mt-1 text-green-500';
-                        }
-                    }
-                }, 5000);
             });
         </script>
 </body>

@@ -9,8 +9,6 @@ new #[Layout('components.layouts.app')] class extends Component
 {
     public $isSyncing = false;
     public $isBackgroundMonitoring = false;
-    public $syncLogs = [];
-    public $showLogs = false;
 
     public function mount()
     {
@@ -37,43 +35,14 @@ new #[Layout('components.layouts.app')] class extends Component
         }
     }
 
-    public function testNotification()
-    {
-        if (class_exists(\Vendor\LocalNotification\Facades\LocalNotification::class)) {
-            \Illuminate\Support\Facades\Log::info('Triggering manual Test Notification');
-            \Vendor\LocalNotification\Facades\LocalNotification::show(
-                "Test Alert", 
-                "If you see this, the notification system is working!",
-                ['channelId' => 'status_updates', 'badge' => 1]
-            );
-        }
-    }
 
     public function syncDashboard()
     {
         $this->isSyncing = true;
         \App\Services\SyncService::performGlobalSync(Auth::user());
         $this->isSyncing = false;
-        
-        // Auto-refresh logs if they are open
-        if ($this->showLogs) {
-            $this->viewSyncLogs();
-        }
     }
 
-    public function viewSyncLogs()
-    {
-        $this->showLogs = true;
-        $path = storage_path('app/logs/sync_pulse.log');
-        
-        if (file_exists($path)) {
-            $content = file($path);
-            // Show last 30 pulses
-            $this->syncLogs = array_reverse(array_slice($content, -30));
-        } else {
-            $this->syncLogs = ['No pulses recorded yet. Wait for a sync attempt.'];
-        }
-    }
 
     public function getStatsProperty()
     {
@@ -182,11 +151,6 @@ new #[Layout('components.layouts.app')] class extends Component
                 <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Truck Zap</h1>
                 <div class="flex items-center gap-2">
                     <p class="text-slate-400 font-medium">Welcome, <span class="text-blue-400">{{ explode(' ', Auth::user()->name)[0] }}</span></p>
-                    <button wire:click="viewSyncLogs" class="p-1.5 bg-white/5 rounded-lg border border-white/10 hover:bg-blue-500/10 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3 text-blue-400">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                        </svg>
-                    </button>
                 </div>
             </div>
             <div class="relative group">
@@ -196,21 +160,6 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
 
-        @if($showLogs)
-            <div class="p-6 glass-morphism border border-blue-500/20 rounded-3xl animate-fadeIn">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-blue-400 italic">Sync Pulse Log</h3>
-                    <button wire:click="$set('showLogs', false)" class="text-slate-500 hover:text-white">&times;</button>
-                </div>
-                <div class="max-h-48 overflow-y-auto space-y-2 no-scrollbar font-mono text-[9px]">
-                    @foreach($syncLogs as $log)
-                        <div class="p-2 bg-white/5 rounded-lg border border-white/5 {{ str_contains($log, 'SUCCESS') ? 'text-green-400' : (str_contains($log, 'FAILED') ? 'text-red-400' : 'text-slate-400') }}">
-                            {{ $log }}
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        @endif
 
         <!-- Status Card -->
         <div class="p-10 bg-royal-gradient rounded-[3rem] relative overflow-hidden group shadow-[0_20px_50px_rgba(30,58,138,0.4)] animate-fadeIn">
@@ -316,56 +265,5 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </div>
 
-        <!-- System Settings -->
-        <div class="space-y-6 animate-fadeIn" style="animation-delay: 300ms">
-            <div class="flex items-center justify-between px-2">
-                <h3 class="text-xl font-black text-white italic">Settings</h3>
-            </div>
-            
-            <div class="p-6 glass-morphism border border-white/5 rounded-[2.5rem] flex items-center justify-between shadow-2xl transition-all group hover:border-blue-500/30">
-                <div class="flex items-center gap-5">
-                    <div class="w-12 h-12 bg-slate-800/50 rounded-2xl flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-blue-400">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                        </svg>
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="text-white font-black italic uppercase tracking-tight">Background Sync</span>
-                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Instant alerts even if app is closed</span>
-                    </div>
-                </div>
-                
-                <label class="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" wire:model.live="isBackgroundMonitoring" class="sr-only peer">
-                    <div class="w-14 h-8 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:start-[4px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600 peer-checked:after:bg-white"></div>
-                </label>
-            </div>
-
-            <p class="text-center text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] px-10">
-                Enabled: keeps app heartbeat alive for 24/7 freight monitoring. Increased battery usage may occur.
-            </p>
-
-            <!-- DIAGNOSTIC TOOLS -->
-            <div x-data="{ localSyncing: false }" class="mt-8 space-y-4">
-                <div class="px-2">
-                    <h3 class="text-xs font-black text-slate-500 italic uppercase tracking-widest">Test Service</h3>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <button wire:click="testNotification" class="p-5 glass-morphism border border-white/5 rounded-2xl flex flex-col items-center gap-3 active:scale-95 transition-all text-blue-400 hover:border-blue-500/20 group">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 group-hover:animate-bounce">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-                        </svg>
-                        <span class="text-[9px] font-black uppercase tracking-widest leading-none">Test Notification</span>
-                    </button>
-
-                    <button @click="localSyncing = true; $wire.syncDashboard().then(() => localSyncing = false)" :disabled="localSyncing" class="p-5 glass-morphism border border-white/5 rounded-2xl flex flex-col items-center gap-3 active:scale-95 transition-all text-purple-400 hover:border-purple-500/20 group disabled:opacity-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" :class="{ 'animate-spin': localSyncing }">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                        <span class="text-[9px] font-black uppercase tracking-widest leading-none">Emergency Sync</span>
-                    </button>
-                </div>
-            </div>
-        </div>
     @endif
 </div>

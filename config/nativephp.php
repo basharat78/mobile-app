@@ -183,7 +183,7 @@ return [
         |          'dark'  - Dark icons
         |
         */
-        'status_bar_style' => 'auto',
+        'status_bar_style' => 'light',
 
         /*
         |--------------------------------------------------------------------------

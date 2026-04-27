@@ -7,11 +7,11 @@ use Filament\Widgets\ChartWidget;
 
 class CarrierStatusChart extends ChartWidget
 {
-    protected static ?string $heading = 'Carrier Status Breakdown';
+    protected ?string $heading = 'Carrier Status Breakdown';
 
     protected static ?int $sort = 4;
 
-    protected static ?string $maxHeight = '300px';
+    protected ?string $maxHeight = '300px';
 
     protected function getType(): string
     {

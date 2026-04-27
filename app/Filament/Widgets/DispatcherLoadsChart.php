@@ -8,11 +8,11 @@ use Filament\Widgets\ChartWidget;
 
 class DispatcherLoadsChart extends ChartWidget
 {
-    protected static ?string $heading = 'Loads by Dispatcher';
+    protected ?string $heading = 'Loads by Dispatcher';
 
     protected static ?int $sort = 3;
 
-    protected static ?string $maxHeight = '300px';
+    protected ?string $maxHeight = '300px';
 
     protected function getType(): string
     {

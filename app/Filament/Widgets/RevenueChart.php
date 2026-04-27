@@ -7,13 +7,13 @@ use Filament\Widgets\ChartWidget;
 
 class RevenueChart extends ChartWidget
 {
-    protected static ?string $heading = 'Revenue Trend (Last 6 Months)';
+    protected ?string $heading = 'Revenue Trend (Last 6 Months)';
 
     protected static ?int $sort = 5;
 
     protected int | string | array $columnSpan = 'full';
 
-    protected static ?string $maxHeight = '300px';
+    protected ?string $maxHeight = '300px';
 
     protected function getType(): string
     {

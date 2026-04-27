@@ -7,13 +7,13 @@ use Filament\Widgets\ChartWidget;
 
 class LoadsPerMonthChart extends ChartWidget
 {
-    protected static ?string $heading = 'Loads Posted (Last 6 Months)';
+    protected ?string $heading = 'Loads Posted (Last 6 Months)';
 
     protected static ?int $sort = 2;
 
     protected int | string | array $columnSpan = 'full';
 
-    protected static ?string $maxHeight = '300px';
+    protected ?string $maxHeight = '300px';
 
     protected function getType(): string
     {

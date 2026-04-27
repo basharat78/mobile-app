@@ -6,6 +6,7 @@ use App\Filament\Resources\LoadResource\Pages;
 use App\Models\Load;
 use Filament\Forms;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -24,7 +25,7 @@ class LoadResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Section::make('Relationships')
+                Section::make('Relationships')
                     ->schema([
                         Forms\Components\Select::make('dispatcher_id')
                             ->relationship('dispatcher', 'name', fn (Builder $query) => $query->where('role', 'dispatcher'))
@@ -38,7 +39,7 @@ class LoadResource extends Resource
                             ->searchable(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Route Details')
+                Section::make('Route Details')
                     ->schema([
                         Forms\Components\TextInput::make('pickup_location')->required(),
                         Forms\Components\TextInput::make('drop_location')->required(),
@@ -46,7 +47,7 @@ class LoadResource extends Resource
                         Forms\Components\TextInput::make('deadhead')->numeric(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Financials & Logistics')
+                Section::make('Financials & Logistics')
                     ->schema([
                         Forms\Components\TextInput::make('rate')->numeric()->prefix('$'),
                         Forms\Components\TextInput::make('rpm')->label('Rate Per Mile')->numeric(),
@@ -63,7 +64,7 @@ class LoadResource extends Resource
                         Forms\Components\TextInput::make('broker_name'),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Schedule')
+                Section::make('Schedule')
                     ->schema([
                         Forms\Components\DateTimePicker::make('pickup_time'),
                         Forms\Components\DateTimePicker::make('drop_off_time'),
@@ -101,9 +102,9 @@ class LoadResource extends Resource
                     ->options([
                         'available' => 'Available',
                         'assigned' => 'Assigned',
-                        'completed' => 'Completed',
                     ]),
             ])
+            ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', 'completed'))
             ->actions([
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),

@@ -162,7 +162,11 @@ class CarrierResource extends Resource
     {
         return [
             'index' => Pages\ListCarriers::route('/'),
-            'create' => Pages\CreateCarrier::route('/create'),
         ];
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
     }
 }

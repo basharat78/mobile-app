@@ -19,7 +19,6 @@ class StatsOverview extends BaseWidget
         $totalLoads = Load::count();
         $availableLoads = Load::where('status', 'available')->count();
         $assignedLoads = Load::where('status', 'assigned')->count();
-        $completedLoads = Load::where('status', 'completed')->count();
 
         $totalCarriers = Carrier::count();
         $approvedCarriers = Carrier::where('status', 'approved')->count();
@@ -28,7 +27,6 @@ class StatsOverview extends BaseWidget
         $totalDispatchers = User::where('role', 'dispatcher')->count();
         $unassignedCarriers = Carrier::whereNull('dispatcher_id')->count();
 
-        $totalRevenue = Load::where('status', 'completed')->sum('rate');
         $pendingBids = LoadRequest::where('status', 'pending')->count();
 
         $pendingDocs = CarrierDocument::where('status', 'pending')->count();
@@ -50,12 +48,6 @@ class StatsOverview extends BaseWidget
                 ->description("{$unassignedCarriers} carriers unassigned")
                 ->descriptionIcon('heroicon-m-user-group')
                 ->color($unassignedCarriers > 0 ? 'warning' : 'success'),
-
-            Stat::make('Completed Loads', $completedLoads)
-                ->description('$' . number_format($totalRevenue, 2) . ' total revenue')
-                ->descriptionIcon('heroicon-m-currency-dollar')
-                ->color('success')
-                ->chart(self::getRevenueTrend()),
 
             Stat::make('Pending Bids', $pendingBids)
                 ->description('Awaiting dispatcher review')
@@ -87,14 +79,4 @@ class StatsOverview extends BaseWidget
         return $data;
     }
 
-    protected static function getRevenueTrend(): array
-    {
-        $data = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $data[] = (int) Load::where('status', 'completed')
-                ->whereDate('created_at', now()->subDays($i))
-                ->sum('rate');
-        }
-        return $data;
-    }
 }

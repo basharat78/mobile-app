@@ -109,15 +109,16 @@ new #[Layout('components.layouts.app')] class extends Component
             if (typeof window.__nativephp_dispatch === 'function') {
                 window.__nativephp_bridge.send('biometric:prompt', {
                     id: 'login_auth',
-                    reason: 'Authenticate to access your Truck Zap dashboard'
+                    reason: 'Authenticate to access your Truckerz App dashboard'
                 });
             }
         }
      }">
     <div class="w-full max-w-md space-y-8">
-        <div class="text-center">
-            <h1 class="text-5xl font-extrabold tracking-tight text-white italic">Truck Zap</h1>
-            <p class="mt-4 text-lg text-slate-400">Reliable Logistics at your fingertips</p>
+        <div class="flex flex-col items-center">
+            <img src="/logo.png" class="h-24 w-auto object-contain" alt="Truckerz App">
+            <h1 class="mt-4 text-4xl font-black text-white italic tracking-tighter uppercase">Truckerz App</h1>
+            <p class="mt-2 text-sm text-slate-400 font-bold uppercase tracking-widest">Reliable Logistics at your fingertips</p>
         </div>
 
         <div class="p-8 mt-10 space-y-6 bg-slate-800/40 border border-white/10 rounded-[2.5rem] backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">

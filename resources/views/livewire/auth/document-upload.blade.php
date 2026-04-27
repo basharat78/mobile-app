@@ -219,15 +219,19 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncDocStatuses">
+<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.30s="syncDocStatuses">
     {{-- Global Loading Overlay --}}
-    {{-- Global Loading Overlay (v91: Centered Fix) --}}
+    {{-- Global Loading Overlay (v94: Enhanced Centering) --}}
     <div wire:loading wire:target="saveDocument, pickFromGallery, scanWithCamera" 
-         class="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md animate-fade-in">
-        <div class="relative flex flex-col items-center justify-center">
-            <div class="w-20 h-20 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin mb-6 shadow-[0_0_30px_rgba(59,130,246,0.2)]"></div>
-            <h2 class="text-white font-black uppercase tracking-[0.3em] text-xs italic animate-pulse">Processing Document</h2>
-            <p class="text-slate-500 font-bold uppercase tracking-widest text-[8px] mt-2">Uploading to secure server...</p>
+         class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-lg animate-fade-in"
+         style="height: 100vh; width: 100vw;">
+        <div class="flex flex-col items-center justify-center text-center px-10">
+            <div class="relative mb-8">
+                <div class="w-20 h-20 border-[6px] border-blue-500/10 border-t-blue-500 rounded-full animate-spin shadow-[0_0_40px_rgba(59,130,246,0.3)]"></div>
+                <div class="absolute inset-0 bg-blue-500/5 blur-2xl rounded-full"></div>
+            </div>
+            <h2 class="text-white font-black uppercase tracking-[0.4em] text-sm italic animate-pulse">Processing Document</h2>
+            <p class="text-blue-400/60 font-bold uppercase tracking-[0.2em] text-[9px] mt-4">Syncing with dispatcher terminal...</p>
         </div>
     </div>
     <div class="w-full max-w-md mx-auto space-y-10">

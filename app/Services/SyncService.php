@@ -40,16 +40,6 @@ class SyncService
             self::recoverPendingRegistration($user);
         }
 
-        // --- 0.1 CONNECTIVITY PRE-FLIGHT (v79) ---
-        // Instant check to see if we can reach the Hostinger host before doing the big sync
-        try {
-            $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
-            $host = parse_url($baseUrl, PHP_URL_HOST);
-            if ($host && !checkdnsrr($host, "A") && !checkdnsrr($host, "AAAA")) {
-                 Storage::disk('local')->append('logs/sync_pulse.log', "[" . now()->toDateTimeString() . "] [{$context}] Aborted: No DNS for host.");
-                 return ['status' => 'error', 'message' => 'Network unreachable (DNS Failure)'];
-            }
-        } catch (\Exception $e) { /* Fallback to normal sync if checkdnsrr fails on this env */ }
 
         try {
             $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';

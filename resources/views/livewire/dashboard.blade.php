@@ -91,12 +91,12 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="px-6 py-12 space-y-10 relative z-10" wire:poll.10s="syncDashboard">
+<div class="px-6 py-6 space-y-6 relative z-10" wire:poll.30s="syncDashboard">
     @php $s = $this->stats; @endphp
     
     @if(!$s['isApproved'])
         <!-- Onboarding / Pending Approval State -->
-        <div class="space-y-10 animate-fadeIn">
+        <div class="space-y-6 animate-fadeIn">
             <div class="flex items-center justify-between">
                 <div class="space-y-1">
                     <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow">Onboarding</h1>
@@ -139,16 +139,25 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                             </svg>
                         </div>
-                        <span class="text-white font-bold italic uppercase tracking-tight">Manage Documents</span>
-                    </div>
+                    <span class="text-white font-bold italic uppercase tracking-tight">Manage Documents</span>
                 </div>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-5 h-5 text-slate-600 group-hover:text-blue-500 transition-colors">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                </svg>
+            </a>
             </div>
         </div>
     @else
         <!-- Header -->
         <div class="flex items-start justify-between animate-fadeIn">
             <div class="space-y-1">
-                <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Truck Zap</h1>
+                <div class="flex items-center gap-3">
+                    <img src="/logo-icon.png" class="h-8 w-auto object-contain" alt="">
+                    <div class="flex items-baseline whitespace-nowrap">
+                        <span class="text-2xl font-black italic text-blue-500 tracking-tight uppercase leading-none">Truckerz</span>
+                        <span class="text-2xl font-black italic text-white tracking-tight uppercase leading-none">App</span>
+                    </div>
+                </div>
                 <div class="flex items-center gap-2">
                     <p class="text-slate-400 font-medium">Welcome, <span class="text-blue-400">{{ explode(' ', Auth::user()->name)[0] }}</span></p>
                 </div>
@@ -162,12 +171,12 @@ new #[Layout('components.layouts.app')] class extends Component
 
 
         <!-- Status Card -->
-        <div class="p-10 bg-royal-gradient rounded-[3rem] relative overflow-hidden group shadow-[0_20px_50px_rgba(30,58,138,0.4)] animate-fadeIn">
+        <div class="p-8 bg-royal-gradient rounded-[3rem] relative overflow-hidden group shadow-[0_20px_50px_rgba(30,58,138,0.4)] animate-fadeIn">
             <div class="relative z-10 flex flex-col items-start">
                 <div class="px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg mb-4">
                     <p class="text-white/70 text-[9px] font-black uppercase tracking-widest leading-none">Account Status</p>
                 </div>
-                <h3 class="text-6xl font-black text-white italic tracking-tighter mb-6 leading-none">{{ $s['status'] }}</h3>
+                <h3 class="text-5xl font-black text-white italic tracking-tighter mb-6 leading-none">{{ $s['status'] }}</h3>
                 <a href="/my-requests" class="inline-flex items-center gap-2 px-6 py-3.5 bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white transition-all shadow-xl active:scale-95">
                     <span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
                     {{ $s['activeLoadsCount'] }} Loads Approved

@@ -149,7 +149,6 @@ new #[Layout('components.layouts.app')] class extends Component
 
             $this->showSuccessModal = true;
             $this->isProcessing = false;
-            $this->isProcessing = false;
 
             // Wait 2 seconds for the user to see the success pop alert (v80)
             sleep(2); 
@@ -179,8 +178,10 @@ new #[Layout('components.layouts.app')] class extends Component
 
 <div class="flex flex-col items-center justify-center min-h-screen px-6 py-12 bg-slate-900 selection:bg-blue-500/30">
     <div class="w-full max-w-md space-y-10">
-        <div class="text-center space-y-2">
-            <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase">Join Truck Zap</h1>
+        <div class="flex flex-col items-center space-y-4">
+            <img src="/logo.png" class="h-20 w-auto object-contain" alt="Truckerz App">
+            <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Join Truckerz App</h1>
+        </div>
             <p class="text-slate-500 font-bold uppercase text-[10px] tracking-[0.2em]">Next-Gen Logistics Network</p>
             
         </div>

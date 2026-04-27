@@ -54,7 +54,7 @@
             }
             .safe-top { top: calc(2.5rem + var(--sat, 0px)); }
             .safe-bottom { bottom: calc(2.2rem + var(--sab, 0px)); }
-            .safe-pt { padding-top: calc(9.5rem + var(--sat, 0px)); }
+            .safe-pt { padding-top: calc(5.5rem + var(--sat, 0px)); }
         </style>
     </head>
     <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: !sessionStorage.getItem('splash_shown'), isOnline: navigator.onLine, loggingOut: false }" x-init="
@@ -80,12 +80,18 @@
         <div x-show="splash" x-cloak x-transition:leave="transition ease-in duration-700" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-110" class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
             <div class="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-slate-900/50"></div>
             <div class="relative z-10 scale-125">
-                <div class="w-24 h-24 bg-blue-gradient rounded-[2rem] flex items-center justify-center shadow-[0_0_50px_rgba(37,99,235,0.4)] animate-float">
-                    <span class="text-4xl font-black text-white italic tracking-tighter">TZ</span>
+                <div class="w-24 h-24 bg-blue-gradient rounded-[2rem] flex items-center justify-center shadow-[0_0_50px_rgba(37,99,235,0.4)] animate-float overflow-hidden">
+                    <img src="/logo-icon.png" class="w-full h-full object-cover p-4" alt="Truckerz App Icon">
                 </div>
                 <div class="absolute -inset-8 bg-blue-500/20 blur-3xl rounded-full animate-pulse"></div>
             </div>
-            <h1 class="mt-12 text-4xl font-black text-white italic tracking-tighter uppercase relative z-10" style="animation: fadeIn 1s forwards 0.5s; opacity: 0;">Truck Zap</h1>
+            <div class="mt-12 flex flex-col items-center gap-4 relative z-10 animate-fadeIn" style="animation-delay: 0.5s; opacity: 0;">
+                <img src="/logo-icon.png" class="h-20 w-auto object-contain" alt="">
+                <div class="flex items-baseline">
+                    <span class="text-4xl font-black italic text-blue-500 tracking-tight uppercase leading-none">Truckerz</span>
+                    <span class="text-4xl font-black italic text-white tracking-tight uppercase leading-none">App</span>
+                </div>
+            </div>
             <div class="mt-6 w-48 h-1 bg-white/5 rounded-full overflow-hidden relative z-10">
                 <div class="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-progress"></div>
             </div>
@@ -191,9 +197,12 @@
                                 </svg>
                             </button>
                         @endif
-                        <div class="flex flex-col">
-                            <h2 class="text-xs font-black italic text-white uppercase tracking-tighter leading-none">Truck Zap</h2>
-                            <span class="text-[8px] font-bold text-blue-400 uppercase tracking-widest mt-0.5">Carrier Hub</span>
+                        <div class="flex items-center gap-1.5">
+                            <img src="/logo-icon.png" class="h-4 w-auto object-contain" alt="">
+                            <div class="flex items-baseline whitespace-nowrap">
+                                <span class="text-[12px] font-black italic text-blue-500 tracking-tight uppercase leading-none">Truckerz</span>
+                                <span class="text-[12px] font-black italic text-white tracking-tight uppercase leading-none">App</span>
+                            </div>
                         </div>
                     </div>
 
@@ -218,7 +227,7 @@
                             </button>
                         @endif
                         <div class="flex items-center gap-3">
-                            <h2 class="text-sm font-black italic text-white uppercase tracking-tighter">Truck Zap</h2>
+                            <h2 class="text-sm font-black italic text-white uppercase tracking-tighter">Truckerz App</h2>
                         </div>
                     </div>
                 </header>
@@ -231,7 +240,7 @@
                             <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
                                 <span class="text-xl font-black italic text-white">TZ</span>
                             </div>
-                            <h2 class="text-xl font-black italic text-white tracking-tighter hidden lg:block">Truck Zap</h2>
+                            <h2 class="text-xl font-black italic text-white tracking-tighter hidden lg:block">Truckerz App</h2>
                         </div>
 
                         <nav class="flex-1 space-y-2">

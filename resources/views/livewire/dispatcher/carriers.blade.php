@@ -64,7 +64,32 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="p-8 space-y-8 bg-slate-900 min-h-screen">
+<div class="p-8 space-y-8 bg-slate-900 min-h-screen" wire:poll.10s
+     x-data="{
+        toasts: [],
+        addToast(message) {
+            const id = Date.now();
+            this.toasts.push({ id, message });
+            setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 6000);
+        }
+     }">
+
+    <!-- Toast Notifications -->
+    <div class="fixed top-6 right-6 z-[200] space-y-3 w-96 pointer-events-none">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-x-8"
+                 x-transition:enter-end="opacity-100 translate-x-0"
+                 class="pointer-events-auto p-4 bg-slate-800/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex gap-4 items-start">
+                <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center text-lg shrink-0">✅</div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="text-sm font-bold text-white">Update</h4>
+                    <p class="text-[11px] text-slate-400 mt-0.5 leading-tight" x-text="toast.message"></p>
+                </div>
+            </div>
+        </template>
+    </div>
+
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Carrier Management</h1>
@@ -107,15 +132,11 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <p class="text-[9px] text-yellow-500/50 font-black uppercase tracking-[0.2em] mt-1 italic">Unassigned Carrier</p>
                             @endif
                         </div>
-                        <div class="mt-4 flex gap-3">
-                            <a href="{{ route('dispatcher.loads', ['carrier_id' => $carrier->id]) }}" wire:navigate class="px-5 py-2 bg-blue-600/10 text-blue-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-500/20">Post Load Job</a>
-                        </div>
                     </div>
                     <div class="flex flex-col items-end gap-3">
-                            <span class="px-4 py-1.5 bg-{{ $carrier->status === 'approved' ? 'green' : ($carrier->status === 'pending' ? 'yellow' : 'red') }}-500/10 text-{{ $carrier->status === 'approved' ? 'green' : ($carrier->status === 'pending' ? 'yellow' : 'red') }}-500 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                {{ $carrier->status }}
-                            </span>
-                        </div>
+                        <span class="px-4 py-1.5 bg-{{ $carrier->status === 'approved' ? 'green' : ($carrier->status === 'pending' ? 'yellow' : 'red') }}-500/10 text-{{ $carrier->status === 'approved' ? 'green' : ($carrier->status === 'pending' ? 'yellow' : 'red') }}-500 rounded-full text-[10px] font-black uppercase tracking-widest">
+                            {{ $carrier->status }}
+                        </span>
                         <div class="flex gap-3">
                             @if($carrier->status !== 'approved')
                                 <button wire:click="updateStatus({{ $carrier->id }}, 'approved')" class="text-[9px] font-black uppercase tracking-widest text-green-500 hover:text-green-400">Approve Account</button>
@@ -124,6 +145,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 <button wire:click="updateStatus({{ $carrier->id }}, 'rejected')" class="text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-400">Reject</button>
                             @endif
                         </div>
+                        <a href="{{ route('dispatcher.loads', ['carrier_id' => $carrier->id]) }}" wire:navigate class="px-5 py-2 bg-blue-600/10 text-blue-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-500/20">Post Load Job</a>
                     </div>
                 </div>
 

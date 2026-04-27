@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 
 new #[Layout('components.layouts.app')] class extends Component 
 {
+    use \Livewire\WithPagination;
     public $pickup_location = '';
     public $pickup_time = '';
     public $drop_location = '';
@@ -78,7 +79,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return Load::with(['requests.carrier.user', 'carrier.user'])
             ->where('dispatcher_id', Auth::id())
             ->latest()
-            ->get();
+            ->paginate(10);
     }
 
     public function saveLoad()
@@ -513,6 +514,11 @@ new #[Layout('components.layouts.app')] class extends Component
                         @endif
                     </div>
                 @endforeach
+            </div>
+
+            <!-- Pagination -->
+            <div class="mt-6">
+                {{ $this->loads->links() }}
             </div>
         </div>
     </div>

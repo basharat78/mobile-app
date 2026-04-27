@@ -10,6 +10,11 @@ class ListCarriers extends ListRecords
 {
     protected static string $resource = CarrierResource::class;
 
+    protected function getPollingInterval(): ?string
+    {
+        return '10s';
+    }
+
     protected function getHeaderActions(): array
     {
         return [];

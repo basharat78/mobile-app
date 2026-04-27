@@ -3,6 +3,12 @@
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\DocumentDownloadController;
+
+// Document download route (no symlink needed for shared hosting)
+Route::get('/docs/{path}', [DocumentDownloadController::class, 'show'])
+    ->where('path', '.*')
+    ->name('document.download');
 
 Route::get('/', function () {
     return redirect()->route('login');

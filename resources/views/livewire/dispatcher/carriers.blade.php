@@ -169,7 +169,7 @@ new #[Layout('components.layouts.app')] class extends Component
                                 
                                 <div class="flex items-center justify-between">
                                     @if($doc)
-                                        <a href="{{ Storage::url($doc->file_path) }}" target="_blank" class="text-[9px] font-black text-blue-500 uppercase tracking-widest hover:underline">Download</a>
+                                        <a href="{{ route('document.download', $doc->file_path) }}" target="_blank" class="text-[9px] font-black text-blue-500 uppercase tracking-widest hover:underline">Download</a>
                                         <div class="flex gap-1">
                                             @if($doc->status !== 'approved')
                                                 <button wire:click="updateDocStatus({{ $doc->id }}, 'approved')" class="w-7 h-7 bg-green-500/10 text-green-500 rounded-lg flex items-center justify-center hover:bg-green-500/20 transition-all font-bold text-xs">✓</button>

@@ -123,4 +123,67 @@ class CarrierApiController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Update carrier profile information from mobile (v92 Sync)
+     */
+    public function updateProfile(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'name' => 'required|string|max:255',
+            'company_name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        $user->update([
+            'name' => $request->name,
+            'company_name' => $request->company_name,
+            'phone' => $request->phone,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cloud identity updated successfully.',
+            'user' => [
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'company_name' => $user->company_name,
+            ]
+        ]);
+    }
+
+    /**
+     * Update carrier password from mobile (v92 Security Sync)
+     */
+    public function updatePassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'current_password' => 'required',
+            'new_password' => 'required|string|min:8',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !\Illuminate\Support\Facades\Hash::check($request->current_password, $user->password)) {
+            return response()->json(['success' => false, 'message' => 'Current password incorrect.'], 401);
+        }
+
+        $user->update([
+            'password' => \Illuminate\Support\Facades\Hash::make($request->new_password),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cloud security key updated successfully.'
+        ]);
+    }
 }

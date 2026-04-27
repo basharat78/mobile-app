@@ -73,6 +73,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 // Return server-provided error if available
                 $serverMessage = $response->json()['message'] ?? 'Identity not found on cloud.';
                 $this->addError('login', 'Cloud Error: ' . $serverMessage);
+                $this->isProcessing = false;
                 return;
             }
         } catch (\Exception $e) {

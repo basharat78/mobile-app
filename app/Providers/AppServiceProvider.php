@@ -42,11 +42,17 @@ class AppServiceProvider extends ServiceProvider
                         \Illuminate\Support\Facades\Log::info('SQLite file created');
                     }
 
-                    // Aggressive Migration Check: If users or sessions table is missing, migrate.
-                    if (!\Illuminate\Support\Facades\Schema::hasTable('users') || !\Illuminate\Support\Facades\Schema::hasTable('sessions')) {
-                        \Illuminate\Support\Facades\Log::info('Database table(s) missing. Running migrations...');
-                        Artisan::call('migrate', ['--force' => true]);
-                        \Illuminate\Support\Facades\Log::info('Migrations executed successfully');
+                    // v93: High-Performance Migration Check
+                    // Only check schema if the .migrated flag is missing.
+                    // This prevents 2-minute boot hangs on slow mobile storage.
+                    $migrationFlag = $dbPath . '.migrated';
+                    if (!file_exists($migrationFlag)) {
+                        if (!\Illuminate\Support\Facades\Schema::hasTable('users')) {
+                            \Illuminate\Support\Facades\Log::info('Database table(s) missing. Running migrations...');
+                            Artisan::call('migrate', ['--force' => true]);
+                            \Illuminate\Support\Facades\Log::info('Migrations executed successfully');
+                        }
+                        touch($migrationFlag);
                     }
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error('SQLite Setup Error', ['error' => $e->getMessage()]);

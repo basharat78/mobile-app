@@ -23,6 +23,8 @@ Route::group(['prefix' => 'carrier'], function() {
     Route::get('/loads/{email}', [\App\Http\Controllers\Api\LoadApiController::class, 'getAvailable'])->where('email', '.*');
     Route::post('/loads/request', [\App\Http\Controllers\Api\LoadApiController::class, 'postRequest']);
     Route::post('/authenticate', [\App\Http\Controllers\Api\CarrierApiController::class, 'authenticate']);
+    Route::post('/profile/update', [\App\Http\Controllers\Api\CarrierApiController::class, 'updateProfile']);
+    Route::post('/password/update', [\App\Http\Controllers\Api\CarrierApiController::class, 'updatePassword']);
 });
 
 // Native Pulse Diagnostic ...

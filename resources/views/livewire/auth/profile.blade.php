@@ -4,6 +4,8 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 new #[Layout('components.layouts.app')] class extends Component
@@ -33,12 +35,26 @@ new #[Layout('components.layouts.app')] class extends Component
             'company_name' => 'nullable|string|max:255',
             'phone' => ['nullable', 'string', 'max:20', Rule::unique('users')->ignore($user->id)],
         ]);
-      $user->update([
+    $user->update([
         'name' => $this->name,
         'email' => $this->email,
         'company_name' => $this->company_name,
         'phone' => $this->phone,
     ]);
+
+    // --- CLOUD SYNC (v92) ---
+    try {
+        $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
+        Http::timeout(10)->post("{$baseUrl}/api/carrier/profile/update", [
+            'email' => $this->email,
+            'name' => $this->name,
+            'company_name' => $this->company_name,
+            'phone' => $this->phone,
+        ]);
+    } catch (\Exception $e) {
+        Log::warning("Profile Cloud Sync Failed: " . $e->getMessage());
+    }
+
     session()->flash('message', 'Profile updated successfully.');
 
     }
@@ -53,6 +69,18 @@ new #[Layout('components.layouts.app')] class extends Component
             'password' => Hash::make($this->new_password),
         ]);
     
+        // --- CLOUD SECURITY SYNC (v92) ---
+        try {
+            $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
+            Http::timeout(10)->post("{$baseUrl}/api/carrier/password/update", [
+                'email' => $user->email,
+                'current_password' => $this->current_password,
+                'new_password' => $this->new_password,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning("Password Cloud Sync Failed: " . $e->getMessage());
+        }
+
         $this->reset(['current_password', 'new_password', 'new_password_confirmation']);
         session()->flash('password-message', 'Security credentials updated successfully.');
         
@@ -68,7 +96,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase text-glow leading-none">Security</h1>
                 <p class="text-slate-400 font-medium text-sm">Manage access and identity</p>
             </div>
-            <form action="{{ route('logout') }}" method="POST">
+            <form action="{{ route('logout') }}" method="POST" x-on:submit="loggingOut = true">
                 @csrf
                 <button type="submit" class="p-4 glass rounded-2xl flex items-center justify-center hover:bg-red-500/10 transition-all border border-red-500/20 group">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform">

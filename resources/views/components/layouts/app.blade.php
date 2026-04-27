@@ -1,11 +1,7 @@
 @php
-    $db_online = false;
-    try {
-        \Illuminate\Support\Facades\DB::connection()->getPdo();
-        $db_online = true;
-    } catch (\Exception $e) {
-        $db_online = false;
-    }
+    // v93: Removed blocking DB::getPdo() check to fix 2-minute app launch delay.
+    // The database status is now assumed online for the initial render.
+    $db_online = true; 
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -58,7 +54,7 @@
             .safe-pt { padding-top: calc(8.5rem + var(--sat, 0px)); }
         </style>
     </head>
-    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: !sessionStorage.getItem('splash_shown'), isOnline: navigator.onLine }" x-init="
+    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: !sessionStorage.getItem('splash_shown'), isOnline: navigator.onLine, loggingOut: false }" x-init="
         if (splash) {
             setTimeout(() => {
                 splash = false;
@@ -114,6 +110,26 @@
             <button onclick="window.location.reload()" class="mt-10 px-8 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all active:scale-95 shadow-2xl">
                 Manual Retry
             </button>
+        </div>
+
+        <!-- Global Logout Overlay (v92) -->
+        <div x-show="loggingOut" x-cloak class="fixed inset-0 z-[400] bg-slate-900/90 backdrop-blur-2xl flex flex-col items-center justify-center animate-fadeIn">
+            <div class="relative">
+                <div class="w-24 h-24 bg-blue-gradient rounded-[2rem] flex items-center justify-center shadow-[0_0_50px_rgba(37,99,235,0.4)] animate-pulse">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-10 h-10 text-white">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                    </svg>
+                </div>
+                <div class="absolute -inset-4 bg-blue-500/20 blur-2xl rounded-full animate-ping"></div>
+            </div>
+            <h2 class="mt-12 text-3xl font-black text-white italic uppercase tracking-tighter">Logging Out</h2>
+            <p class="mt-2 text-slate-400 font-bold uppercase text-[10px] tracking-widest">Securing your session...</p>
+            
+            <div class="mt-8 flex gap-1">
+                <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+            </div>
         </div>
 
         <div class="min-h-screen pb-24 flex flex-col md:flex-row" x-cloak x-show="!splash">
@@ -313,7 +329,7 @@
                                     <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{{ Auth::user()->role }}</p>
                                 </div>
                             </div>
-                            <form action="{{ route('logout') }}" method="POST">
+                            <form id="logout-form" action="{{ route('logout') }}" method="POST" x-on:submit="loggingOut = true">
                                 @csrf
                                 <button type="submit" class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-all text-xs font-bold uppercase tracking-widest">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">

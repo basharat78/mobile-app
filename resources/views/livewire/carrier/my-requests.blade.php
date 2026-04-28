@@ -21,6 +21,11 @@ new #[Layout('components.layouts.app')] class extends Component
         $query = LoadRequest::with('loadJob')
             ->whereHas('loadJob')
             ->where('carrier_id', Auth::user()->carrier->id)
+            ->where(function($q) {
+                // Keep all non-pending requests, but only keep pending requests from the last 30 minutes
+                $q->where('status', '!=', 'pending')
+                  ->orWhere('created_at', '>=', now()->subMinutes(30));
+            })
             ->latest();
 
         if ($this->status !== 'all') {

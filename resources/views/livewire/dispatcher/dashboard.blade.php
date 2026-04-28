@@ -82,6 +82,10 @@ new #[Layout('components.layouts.app')] class extends Component
             });
 
         $bids = LoadRequest::with(['carrier.user', 'loadJob'])
+            ->where(function($q) {
+                $q->where('status', '!=', 'pending')
+                  ->orWhere('created_at', '>=', now()->subMinutes(30));
+            })
             ->latest()
             ->take(5)
             ->get()

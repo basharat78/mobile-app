@@ -55,9 +55,15 @@
             .safe-top { top: calc(2.5rem + var(--sat, 0px)); }
             .safe-bottom { bottom: calc(2.2rem + var(--sab, 0px)); }
             .safe-pt { padding-top: calc(5.5rem + var(--sat, 0px)); }
+            @keyframes roadScroll {
+                from { stroke-dashoffset: 0; }
+                to   { stroke-dashoffset: -40; }
+            }
         </style>
     </head>
-    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" x-data="{ splash: !sessionStorage.getItem('splash_shown'), isOnline: navigator.onLine, loggingOut: false }" x-init="
+    <body class="font-sans antialiased bg-slate-900 text-white selection:bg-blue-500/30 overflow-x-hidden relative" 
+          x-data="{ splash: !sessionStorage.getItem('splash_shown'), isOnline: navigator.onLine, loggingOut: false }" 
+          x-init="
         if (splash) {
             setTimeout(() => {
                 splash = false;
@@ -130,6 +136,7 @@
                 <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
             </div>
         </div>
+
 
         <div class="min-h-screen pb-24 flex flex-col md:flex-row" x-cloak x-show="!splash">
             <!-- Global Toast Notifications -->
@@ -427,5 +434,37 @@
                 }
             });
         </script>
+        <script data-navigate-once>
+            // Ultimate Persistent Loader Logic
+            (function() {
+                const show = () => {
+                    const el = document.getElementById('global-truck-loader');
+                    if (el) el.style.display = 'flex';
+                };
+                const hide = () => {
+                    const el = document.getElementById('global-truck-loader');
+                    if (el) el.style.display = 'none';
+                };
+
+                // Listen on document (Livewire 3 events often don't bubble to window)
+                document.addEventListener('livewire:navigating', show);
+                document.addEventListener('livewire:navigated', hide);
+                
+                // Proactive click trigger for wire:navigate links
+                document.addEventListener('click', (e) => {
+                    const link = e.target.closest('a[wire\\:navigate], button[wire\\:navigate]');
+                    if (link) show();
+                });
+            })();
+        </script>
+
+        <!-- Persistent Global Loader (Survived Swaps via wire:persist) -->
+        <div wire:persist="global-loader">
+            <div id="global-truck-loader" 
+                 style="display: none;" 
+                 class="fixed inset-0 z-[2000] bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center">
+                <x-truck-loader message="Driving..." />
+            </div>
+        </div>
 </body>
 </html>

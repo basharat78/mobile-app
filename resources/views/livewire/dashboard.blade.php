@@ -56,7 +56,11 @@ new #[Layout('components.layouts.app')] class extends Component
         return [
             'isApproved' => $isApproved,
             'activeLoadsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'approved')->whereHas('loadJob')->count() : 0,
-            'pendingRequestsCount' => $isApproved ? $carrier->loadRequests()->where('status', 'pending')->whereHas('loadJob')->count() : 0,
+            'pendingRequestsCount' => $isApproved ? $carrier->loadRequests()
+                ->where('status', 'pending')
+                ->where('created_at', '>=', now()->subMinutes(30))
+                ->whereHas('loadJob')
+                ->count() : 0,
             'requestLoadsCount' => Load::where('carrier_id', $carrier->id)->count(),
             'status' => ucfirst($carrier->status),
             'initials' => collect(explode(' ', $user->name ?? ''))->filter()->map(fn($n) => substr($n, 0, 1))->take(2)->join('') ?: 'U',
@@ -76,7 +80,18 @@ new #[Layout('components.layouts.app')] class extends Component
                     'time' => $doc->updated_at,
                 ]);
             }
-            foreach($carrier->loadRequests()->whereHas('loadJob')->with('loadJob')->latest()->take(3)->get() as $request) {
+            $recentBids = $carrier->loadRequests()
+                ->whereHas('loadJob')
+                ->with('loadJob')
+                ->where(function($q) {
+                    $q->where('status', '!=', 'pending')
+                      ->orWhere('created_at', '>=', now()->subMinutes(30));
+                })
+                ->latest()
+                ->take(3)
+                ->get();
+
+            foreach($recentBids as $request) {
                 $recentUpdates->push([
                     'title' => 'Load Request ' . ucfirst($request->status),
                     'description' => "For " . ($request->loadJob?->pickup_location ?? 'Unknown Load'),

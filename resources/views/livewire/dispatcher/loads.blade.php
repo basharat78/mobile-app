@@ -76,7 +76,12 @@ new #[Layout('components.layouts.app')] class extends Component
     #[Computed]
     public function loads()
     {
-        return Load::with(['requests.carrier.user', 'carrier.user'])
+        return Load::with(['requests' => function($q) {
+            $q->where(function($sub) {
+                $sub->where('status', '!=', 'pending')
+                    ->orWhere('created_at', '>=', now()->subMinutes(30));
+            })->with('carrier.user');
+        }, 'carrier.user'])
             ->where('dispatcher_id', Auth::id())
             ->latest()
             ->paginate(10);

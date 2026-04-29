@@ -83,7 +83,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
         // 1. Sync to Cloud FIRST
         try {
-            $apiUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/loads/request';
+            $apiUrl = (env('REMOTE_API_URL') ?: 'https://truck-app.morphoworks.com') . '/api/carrier/loads/request';
             $response = \Illuminate\Support\Facades\Http::timeout(10)->post($apiUrl, [
                 'email' => $user->email,
                 'load_id' => $loadId

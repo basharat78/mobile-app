@@ -46,7 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component
         try {
             // 1. Sync Remote ID if missing
             if (!$carrier->remote_id) {
-                $lookupUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/lookup';
+                $lookupUrl = (env('REMOTE_API_URL') ?: 'https://truck-app.morphoworks.com') . '/api/carrier/lookup';
                 $lookupResponse = \Illuminate\Support\Facades\Http::timeout(5)->post($lookupUrl, ['email' => $user->email]);
                 if ($lookupResponse->successful()) {
                     $lookupData = $lookupResponse->json();
@@ -61,7 +61,7 @@ new #[Layout('components.layouts.app')] class extends Component
 
             // 2. Sync Status from Cloud
             if ($carrier->remote_id) {
-                $statusUrl = (env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com') . '/api/carrier/status/' . $user->email;
+                $statusUrl = (env('REMOTE_API_URL') ?: 'https://truck-app.morphoworks.com') . '/api/carrier/status/' . $user->email;
                 $remoteStatusResponse = \Illuminate\Support\Facades\Http::timeout(5)->get($statusUrl);
                 if ($remoteStatusResponse->successful()) {
                     $remoteStatusData = $remoteStatusResponse->json();

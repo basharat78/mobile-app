@@ -26,7 +26,7 @@ class SyncService
         ];
 
         $context = app()->runningInConsole() ? 'BACKGROUND' : 'FOREGROUND';
-        $baseUrl = env('REMOTE_API_URL') ?: 'https://mobile.morphoworks.com';
+        $baseUrl = env('REMOTE_API_URL') ?: 'https://truck-app.morphoworks.com';
         $email = $user->email;
 
         Log::debug("SyncService: Starting {$context} pulse for {$email}");

@@ -36,6 +36,19 @@ class Load extends Model
                 $load->dispatcher_phone = \App\Models\User::where('id', $load->dispatcher_id)->value('phone');
             }
         });
+
+        static::created(function ($load) {
+            // Background Alert: Notify all carriers about the new load
+            $drivers = \App\Models\User::where('role', 'carrier')->whereNotNull('fcm_token')->get();
+
+            foreach ($drivers as $driver) {
+                \App\Services\BackgroundNotificationService::send(
+                    $driver, 
+                    "🚚 New Load Available!", 
+                    "From {$load->pickup_location} to {$load->drop_location} - \${$load->rate}"
+                );
+            }
+        });
     }
 
     public function dispatcher()

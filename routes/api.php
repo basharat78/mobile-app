@@ -25,6 +25,7 @@ Route::group(['prefix' => 'carrier'], function() {
     Route::post('/authenticate', [\App\Http\Controllers\Api\CarrierApiController::class, 'authenticate']);
     Route::post('/profile/update', [\App\Http\Controllers\Api\CarrierApiController::class, 'updateProfile']);
     Route::post('/password/update', [\App\Http\Controllers\Api\CarrierApiController::class, 'updatePassword']);
+    Route::post('/update-token', [\App\Http\Controllers\Api\CarrierApiController::class, 'updateToken']);
 });
 
 // Native Pulse Diagnostic ...

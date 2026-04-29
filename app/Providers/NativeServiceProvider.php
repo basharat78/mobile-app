@@ -19,7 +19,29 @@ class NativeServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        \Illuminate\Support\Facades\Log::info("NativeServiceProvider: Booting. Registering Push Token Listener.");
+        
+        \Illuminate\Support\Facades\Event::listen(
+            \Native\Mobile\Events\PushNotification\TokenGenerated::class,
+            function ($event) {
+                \Illuminate\Support\Facades\Log::info("PushToken Event Received: " . $event->token);
+                
+                if ($user = \Illuminate\Support\Facades\Auth::user()) {
+                    $user->update(['fcm_token' => $event->token]);
+                    \Illuminate\Support\Facades\Log::info("PushToken: Saved to Local User #{$user->id}");
+                    
+                    // FORCE SYNC TO REMOTE SERVER IMMEDIATELY
+                    try {
+                        app(\App\Services\SyncService::class)->syncRemoteAccountStatus();
+                        \Illuminate\Support\Facades\Log::info("PushToken: Sync to Remote Server Triggered.");
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error("PushToken Sync Failed: " . $e->getMessage());
+                    }
+                } else {
+                    \Illuminate\Support\Facades\Log::warning("PushToken Received but no user is logged in.");
+                }
+            }
+        );
     }
 
     /**

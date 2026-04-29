@@ -22,6 +22,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $fieldType = filter_var($this->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
 
         $this->isProcessing = true;
+        \Illuminate\Support\Facades\Log::info('Login Attempt Started', ['login' => $this->login]);
 
         // 1. Try Local Login
         if (Auth::attempt([$fieldType => $this->login, 'password' => $this->password], $this->remember)) {
@@ -145,9 +146,11 @@ new #[Layout('components.layouts.app')] class extends Component
                 </div>
 
                 <div class="pt-2">
-                    <button type="submit" class="flex justify-center w-full px-6 py-4 text-base font-bold text-white bg-blue-600 rounded-2xl hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all active:scale-[0.98] shadow-xl shadow-blue-500/25">
-                        <span wire:loading.remove>Login</span>
-                        <span wire:loading>Authenticating...</span>
+                    <button type="submit" 
+                            x-on:click="$dispatch('input')"
+                            class="flex justify-center w-full px-6 py-4 text-base font-bold text-white bg-blue-600 rounded-2xl hover:bg-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/30 transition-all active:scale-[0.98] shadow-xl shadow-blue-500/25">
+                        <span wire:loading.remove wire:target="authenticate">Login</span>
+                        <span wire:loading wire:target="authenticate">Authenticating...</span>
                     </button>
                 </div>
             </form>
@@ -206,5 +209,11 @@ new #[Layout('components.layouts.app')] class extends Component
             </div>
         </template>
     </div>
+
+    <!-- CLEAN DEBUG LINK (No Livewire) -->
+    <a href="/debug/push" 
+       style="position:fixed;bottom:20px;right:20px;z-index:9999;background:rgba(255,0,0,0.5);color:white;padding:5px 10px;border-radius:10px;font-size:10px;text-decoration:none;">
+       🔍 DEBUG PUSH
+    </a>
 </div>
 

@@ -30,7 +30,7 @@ class CarrierApiController extends Controller
                 'type' => $d->type,
                 'status' => $d->status,
             ])->values(),
-        ]);
+        ]); 
     }
 
     /**
@@ -49,7 +49,7 @@ class CarrierApiController extends Controller
             'success' => true,
             'carrier_id' => $user->carrier->id,
             'status' => $user->carrier->status
-        ]);
+        ]); 
     }
 
     /**
@@ -65,7 +65,7 @@ class CarrierApiController extends Controller
             'preferred_equipment' => 'nullable|string',
             'min_rate' => 'nullable|numeric',
             'signature_path' => 'nullable|string',
-        ]);
+        ]); 
 
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
@@ -83,12 +83,12 @@ class CarrierApiController extends Controller
             'preferred_equipment' => $request->preferred_equipment,
             'min_rate' => $request->min_rate,
             'signature_path' => $request->signature_path,
-        ]);
+        ]); 
 
         return response()->json([
             'success' => true,
             'message' => 'Preferences and signature synced to cloud via email.'
-        ]);
+        ]); 
     }
     /**
      * Authenticate a carrier from cloud (v42 Identity Recovery)
@@ -98,7 +98,7 @@ class CarrierApiController extends Controller
         $request->validate([
             'login' => 'required',
             'password' => 'required',
-        ]);
+        ]); 
 
         $fieldType = filter_var($request->login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
         
@@ -121,7 +121,7 @@ class CarrierApiController extends Controller
                 'id' => $user->carrier->id,
                 'status' => $user->carrier->status,
             ]
-        ]);
+        ]); 
     }
 
     /**
@@ -134,7 +134,7 @@ class CarrierApiController extends Controller
             'name' => 'required|string|max:255',
             'company_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
-        ]);
+        ]); 
 
         $user = User::where('email', $request->email)->first();
 
@@ -146,7 +146,7 @@ class CarrierApiController extends Controller
             'name' => $request->name,
             'company_name' => $request->company_name,
             'phone' => $request->phone,
-        ]);
+        ]); 
 
         return response()->json([
             'success' => true,
@@ -157,7 +157,7 @@ class CarrierApiController extends Controller
                 'phone' => $user->phone,
                 'company_name' => $user->company_name,
             ]
-        ]);
+        ]); 
     }
 
     /**
@@ -169,7 +169,7 @@ class CarrierApiController extends Controller
             'email' => 'required|email',
             'current_password' => 'required',
             'new_password' => 'required|string|min:8',
-        ]);
+        ]); 
 
         $user = User::where('email', $request->email)->first();
 
@@ -184,6 +184,30 @@ class CarrierApiController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Cloud security key updated successfully.'
-        ]);
+        ]); 
     }
+    /**
+     * Update carrier push notification token (v112 FCM)
+     */
+    public function updateToken(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'fcm_token' => 'required|string',
+        ]); 
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
+        }
+
+        $user->update(['fcm_token' => $request->fcm_token]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Push token synchronized successfully.'
+        ]); 
+    }
+    
 }

@@ -303,7 +303,6 @@
             @endauth
 
             <main class="flex-1 min-h-screen {{ Auth::check() && Auth::user()->role === 'carrier' ? 'safe-pt' : 'pt-20' }} {{ Auth::check() && Auth::user()->role === 'dispatcher' ? 'md:ml-64 md:pt-0' : 'max-w-md mx-auto md:max-w-none' }}">
-                <livewire:notification-manager />
                 {{ $slot }}
             </main>
 
@@ -466,5 +465,7 @@
                 <x-truck-loader message="Driving..." />
             </div>
         </div>
+
+        <livewire:notification-manager />
 </body>
 </html>

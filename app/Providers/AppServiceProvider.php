@@ -28,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
         if (config('database.default') === 'sqlite') {
             $dbPath = config('database.connections.sqlite.database');
             
-            \Illuminate\Support\Facades\Log::info('Checking SQLite database', ['path' => $dbPath]);
+            // \Illuminate\Support\Facades\Log::info('Checking SQLite database', ['path' => $dbPath]);
 
             if ($dbPath && $dbPath !== ':memory:') {
                 try {

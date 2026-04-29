@@ -12,10 +12,23 @@ use Illuminate\Notifications\Notifiable;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 
-#[Fillable(['name', 'email', 'password', 'phone', 'role', 'company_name'])]
-#[Hidden(['password', 'remember_token'])]
+
 class User extends Authenticatable implements FilamentUser
 {
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'phone',
+        'role',
+        'company_name',
+        'fcm_token'
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 

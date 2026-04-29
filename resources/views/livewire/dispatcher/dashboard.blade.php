@@ -93,7 +93,7 @@ new #[Layout('components.layouts.app')] class extends Component
                 return [
                     'type' => 'Load Bid',
                     'name' => $item->carrier->user->name ?? 'Unknown',
-                    'company' => "Load #{$item->load_id} ({$item->loadJob->pickup_location})",
+                    'company' => "Load #{$item->load_id} (" . ($item->loadJob->pickup_location ?? 'Deleted') . ")",
                     'status' => $item->status,
                     'time' => $item->created_at,
                     'avatar' => 'LB',

@@ -50,8 +50,12 @@ new #[Layout('components.layouts.app')] class extends Component
             $carrierName = $latest?->user?->name ?? 'Unknown';
             $dispName = $latest?->dispatcher?->name ?? 'a dispatcher';
             $this->dispatch('show-toast', type: 'assign', message: "{$carrierName} assigned to {$dispName}");
-            $this->lastAssignedCount = $currentAssigned;
         }
+
+        // v120: Always sync counts to force re-evaluation of computed properties
+        $this->lastCarrierCount = $currentCarriers;
+        $this->lastBidCount = $currentBids;
+        $this->lastAssignedCount = $currentAssigned;
     }
 
     public function getStatsProperty()
@@ -84,7 +88,7 @@ new #[Layout('components.layouts.app')] class extends Component
         $bids = LoadRequest::with(['carrier.user', 'loadJob'])
             ->where(function($q) {
                 $q->where('status', '!=', 'pending')
-                  ->orWhere('created_at', '>=', now()->subMinutes(30));
+                  ->orWhere('created_at', '>=', now()->subHours(24));
             })
             ->latest()
             ->take(5)

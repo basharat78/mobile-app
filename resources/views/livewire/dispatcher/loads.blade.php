@@ -79,7 +79,7 @@ new #[Layout('components.layouts.app')] class extends Component
         return Load::with(['requests' => function($q) {
             $q->where(function($sub) {
                 $sub->where('status', '!=', 'pending')
-                    ->orWhere('created_at', '>=', now()->subMinutes(30));
+                    ->orWhere('created_at', '>=', now()->subHours(24));
             })->with('carrier.user');
         }, 'carrier.user'])
             ->where('dispatcher_id', Auth::id())
@@ -204,7 +204,7 @@ new #[Layout('components.layouts.app')] class extends Component
 };
 ?>
 
-<div class="p-8 space-y-8 bg-slate-900 min-h-screen">
+<div class="p-8 space-y-8 bg-slate-900 min-h-screen" wire:poll.10s>
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Load Management</h1>

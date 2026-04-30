@@ -14,15 +14,18 @@ class GpsService
      */
     public static function syncLocation($user)
     {
-        if (!System::isMobile()) {
+        Log::info("GpsService: Starting syncLocation for User #{$user->id}");
+
+        if (!System::isMobile() && !app()->environment('local')) {
+            Log::info("GpsService: Skipping - Not in mobile environment.");
             return;
         }
 
         try {
-            Log::info("GpsService: Checking location permissions for User #{$user->id}");
+            Log::info("GpsService: Checking location permissions...");
             
             if (!class_exists(\Vendor\NativePHPGeolocation\Facades\Geolocation::class)) {
-                Log::warning("GpsService: Geolocation plugin class not found. Is the package installed?");
+                Log::error("GpsService: CRITICAL - Geolocation facade NOT FOUND!");
                 return;
             }
 

@@ -18,6 +18,9 @@ class Carrier extends Model
         'dispatcher_id',
         'background_sync_enabled',
         'is_notified',
+        'last_lat',
+        'last_lng',
+        'last_location_update',
     ];
 
     public function managedCarriers()

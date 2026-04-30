@@ -80,23 +80,33 @@ Route::get('/debug/push', function () {
         }
     }
 
-    // 4. Check current user
+    // 4. GEOLOCATION DIAGNOSTICS (v125)
+    if (function_exists('nativephp_can')) {
+        $results['can_GetCurrentPosition'] = nativephp_can('Geolocation.GetCurrentPosition');
+        $results['can_CheckPermissions'] = nativephp_can('Geolocation.CheckPermissions');
+        $results['can_RequestPermissions'] = nativephp_can('Geolocation.RequestPermissions');
+    }
+
+    if (function_exists('nativephp_call')) {
+        try {
+            $rawPos = nativephp_call('Geolocation.GetCurrentPosition', json_encode(['high_accuracy' => true]));
+            $results['geolocation_raw'] = $rawPos;
+            if ($rawPos) {
+                $results['geolocation_decoded'] = json_decode($rawPos, true);
+            }
+        } catch (\Exception $e) {
+            $results['geolocation_error'] = $e->getMessage();
+        }
+    }
+
+    // 5. Check current user
     $user = Auth::user();
     $results['user_logged_in'] = $user ? true : false;
     $results['user_id'] = $user?->id;
     $results['current_fcm_token'] = $user?->fcm_token;
-
-    // 5. If we got a token, try saving it
-    if (function_exists('nativephp_call')) {
-        $raw = nativephp_call('PushNotification.GetToken', '{}');
-        if ($raw) {
-            $decoded = json_decode($raw, true);
-            $token = $decoded['token'] ?? null;
-            if ($token && $token !== '' && $user) {
-                $user->update(['fcm_token' => $token]);
-                $results['SAVED_TOKEN'] = $token;
-            }
-        }
+    if ($user && $user->carrier) {
+        $results['carrier_last_lat'] = $user->carrier->last_lat;
+        $results['carrier_last_lng'] = $user->carrier->last_lng;
     }
 
     return response()->json($results, 200, [], JSON_PRETTY_PRINT);

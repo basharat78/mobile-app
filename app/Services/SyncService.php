@@ -33,6 +33,7 @@ class SyncService
         Log::debug("SyncService: Starting {$context} pulse for {$email}");
         
         // --- 0. SYNC GPS LOCATION (v125: New Feature) ---
+        Log::info("SyncService: Triggering GpsService...");
         GpsService::syncLocation($user);
 
         // --- 1. SYNC FCM TOKEN (v115: Prioritized & Decoupled) ---

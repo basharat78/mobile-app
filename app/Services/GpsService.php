@@ -21,6 +21,11 @@ class GpsService
         try {
             Log::info("GpsService: Checking location permissions for User #{$user->id}");
             
+            if (!class_exists(\Vendor\NativePHPGeolocation\Facades\Geolocation::class)) {
+                Log::warning("GpsService: Geolocation plugin class not found. Is the package installed?");
+                return;
+            }
+
             // 1. Check Permissions
             $permission = Geolocation::checkPermissions();
             $status = is_string($permission) ? $permission : ($permission->status ?? 'denied');

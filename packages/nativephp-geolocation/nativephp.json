@@ -1,0 +1,42 @@
+{
+    "namespace": "Geolocation",
+    "bridge_functions": [
+        {
+            "name": "Geolocation.GetCurrentPosition",
+            "ios": "GeolocationFunctions.GetCurrentPosition",
+            "android": "com.vendor.plugins.geolocation.GeolocationFunctions.GetCurrentPosition",
+            "description": "Retrieves the device's current GPS/network position"
+        },
+        {
+            "name": "Geolocation.CheckPermissions",
+            "ios": "GeolocationFunctions.CheckPermissions",
+            "android": "com.vendor.plugins.geolocation.GeolocationFunctions.CheckPermissions",
+            "description": "Returns the current location permission status"
+        },
+        {
+            "name": "Geolocation.RequestPermissions",
+            "ios": "GeolocationFunctions.RequestPermissions",
+            "android": "com.vendor.plugins.geolocation.GeolocationFunctions.RequestPermissions",
+            "description": "Prompts the user to grant location permissions"
+        }
+    ],
+    "events": [
+        "Vendor\\NativePHPGeolocation\\Events\\Geolocation\\LocationReceived",
+        "Vendor\\NativePHPGeolocation\\Events\\Geolocation\\PermissionStatusReceived",
+        "Vendor\\NativePHPGeolocation\\Events\\Geolocation\\PermissionRequestResult"
+    ],
+    "android": {
+        "min_version": 26,
+        "permissions": [
+            "android.permission.ACCESS_FINE_LOCATION",
+            "android.permission.ACCESS_COARSE_LOCATION"
+        ]
+    },
+    "ios": {
+        "min_version": "18.0",
+        "info_plist": {
+            "NSLocationWhenInUseUsageDescription": "This app uses your location to provide location-based features.",
+            "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location in the background and foreground."
+        }
+    }
+}

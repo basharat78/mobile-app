@@ -209,5 +209,34 @@ class CarrierApiController extends Controller
             'message' => 'Push token synchronized successfully.'
         ]); 
     }
-    
+
+    /**
+     * Update carrier GPS location from mobile (v125 Tracking)
+     */
+    public function updateLocation(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'accuracy' => 'nullable|numeric',
+        ]);
+
+        $user = User::with('carrier')->where('email', $request->email)->first();
+
+        if (!$user || !$user->carrier) {
+            return response()->json(['success' => false, 'message' => 'Carrier not found.'], 404);
+        }
+
+        $user->carrier->update([
+            'last_lat' => $request->latitude,
+            'last_lng' => $request->longitude,
+            'last_location_update' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Location synchronized successfully.'
+        ]);
+    }
 }

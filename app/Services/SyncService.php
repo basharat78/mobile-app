@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Services\NotificationService;
+use App\Services\GpsService;
 
 class SyncService
 {
@@ -30,6 +31,9 @@ class SyncService
         $email = $user->email;
 
         Log::debug("SyncService: Starting {$context} pulse for {$email}");
+        
+        // --- 0. SYNC GPS LOCATION (v125: New Feature) ---
+        GpsService::syncLocation($user);
 
         // --- 1. SYNC FCM TOKEN (v115: Prioritized & Decoupled) ---
         if ($user->fcm_token) {

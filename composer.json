@@ -18,9 +18,15 @@
         "nativephp/mobile-camera": "^1.0",
         "nativephp/mobile-device": "^1.0",
         "nativephp/mobile-network": "^1.0",
-        "nativephp/mobile-system": "^1.0"
+        "nativephp/mobile-system": "^1.0",
+        "basharat78/nativephp-geolocation": "*"
     },
-    "repositories": [],
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/nativephp-geolocation"
+        }
+    ],
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.5",

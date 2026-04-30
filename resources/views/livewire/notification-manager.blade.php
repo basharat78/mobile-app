@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Native\Mobile\Facades\PushNotifications;
 use Native\Mobile\Facades\System;
+use Native\Mobile\Facades\System as SystemFacade;
 use App\Services\SyncService;
 
 new class extends Component
@@ -16,7 +17,6 @@ new class extends Component
 
     /**
      * The Heartbeat: This runs globally on every page.
-     * It ensures the local database is always fresh and triggers alerts.
      */
     public function performGlobalHeartbeat()
     {
@@ -44,6 +44,17 @@ new class extends Component
         $this->isFirstPulse = false;
     }
 
+    public function requestPermission()
+    {
+        Log::info("PushToken: User requested permission manually.");
+        try {
+            // Standard enrollment triggers the native popup
+            PushNotifications::enroll();
+        } catch (\Exception $e) {
+            Log::error("PushToken Manual Request Failed: " . $e->getMessage());
+        }
+    }
+
     protected function syncPushToken($user)
     {
         Log::info("PushToken: Checking token for User #{$user->id}");
@@ -66,8 +77,13 @@ new class extends Component
                     SyncService::performGlobalSync($user);
                 }
             } else {
-                Log::info("PushToken: Token null, enrolling...");
-                PushNotifications::enroll();
+                Log::info("PushToken: Token null, explicitly requesting permission...");
+                try {
+                    // Standard enrollment triggers the native popup
+                    PushNotifications::enroll();
+                } catch (\Exception $e) {
+                    Log::error("PushToken Permission Request Failed: " . $e->getMessage());
+                }
             }
         } catch (\Exception $e) {
             Log::error("PushToken Error: " . $e->getMessage());
@@ -96,6 +112,20 @@ new class extends Component
     <div wire:poll.30s="performGlobalHeartbeat" class="hidden">
         <!-- Watchtower: Active -->
     </div>
+
+    @auth
+        @if(!Auth::user()->fcm_token)
+            <div class="fixed bottom-24 left-6 right-6 z-[9999] animate-bounce">
+                <button wire:click="requestPermission" 
+                        class="w-full bg-orange-600/90 backdrop-blur-lg text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-2xl border border-white/20 flex items-center justify-center gap-3 active:scale-95 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                    Fix Notifications (Allow Popup)
+                </button>
+            </div>
+        @endif
+    @endauth
 
     <!-- Diagnostic Link -->
     <a href="/debug/push" 

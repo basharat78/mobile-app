@@ -62,6 +62,23 @@ class CarrierResource extends Resource
                             ->numeric()
                             ->prefix('$'),
                     ])->columns(2),
+
+                Section::make('Live Location')
+                    ->schema([
+                        Forms\Components\TextInput::make('last_lat')
+                            ->label('Latitude')
+                            ->disabled(),
+                        Forms\Components\TextInput::make('last_lng')
+                            ->label('Longitude')
+                            ->disabled(),
+                        Forms\Components\DateTimePicker::make('last_location_update')
+                            ->label('Last Sync')
+                            ->disabled(),
+                        Forms\Components\ViewField::make('location_map')
+                            ->view('filament.forms.components.location-map')
+                            ->columnSpanFull()
+                    ])->columns(3)
+                    ->visible(fn ($record) => !empty($record?->last_lat)),
             ]);
     }
 
@@ -85,6 +102,12 @@ class CarrierResource extends Resource
                 Tables\Columns\TextColumn::make('dispatcher.name')
                     ->label('Dispatcher')
                     ->placeholder('Unassigned'),
+                Tables\Columns\TextColumn::make('last_location_update')
+                    ->label('Last Seen')
+                    ->since()
+                    ->sortable()
+                    ->color('gray')
+                    ->description(fn (Carrier $record): ?string => $record->last_lat ? "At {$record->last_lat}, {$record->last_lng}" : null),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
@@ -103,6 +126,15 @@ class CarrierResource extends Resource
                     ->query(fn (Builder $query): Builder => $query->whereNull('dispatcher_id')),
             ])
             ->actions([
+                Actions\Action::make('view_map')
+                    ->label('Map')
+                    ->icon('heroicon-o-map-pin')
+                    ->color('info')
+                    ->modalHeading(fn (Carrier $record) => "Live Location: " . ($record->user?->name ?? 'Carrier'))
+                    ->modalContent(fn (Carrier $record) => view('filament.forms.components.location-map', ['record' => $record]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close')
+                    ->visible(fn (Carrier $record) => !empty($record->last_lat)),
                 Actions\Action::make('assign_dispatcher')
                     ->label('Assign')
                     ->icon('heroicon-o-user-plus')

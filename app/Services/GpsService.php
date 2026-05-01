@@ -28,19 +28,23 @@ class GpsService
             $permission = Geolocation::checkPermissions();
             $status = is_string($permission) ? $permission : ($permission->status ?? 'denied');
 
-            if ($status !== 'granted') {
+            if (!str_contains($status, 'granted')) {
                 Log::warning("GpsService: Location permission is {$status}. Requesting...");
                 Geolocation::requestPermissions();
-                return;
+                return ['success' => false, 'error' => "Permission: {$status}"];
             }
 
-            // 2. Get Position (High Accuracy for better tracking)
-            Log::info("GpsService: Fetching current position...");
+            // 2. Get Position
             $position = Geolocation::getCurrentPosition(true);
 
-            if (!$position || !isset($position->latitude)) {
-                Log::warning("GpsService: Failed to get position (timeout or error).");
-                return;
+            if (!$position) {
+                Log::warning("GpsService: Failed to acquire position (null).");
+                return ['success' => false, 'error' => 'Failed to acquire position (null)'];
+            }
+
+            if (isset($position->status) && $position->status === 'error') {
+                Log::warning("GpsService: Failed to acquire position: " . ($position->message ?? 'Unknown error'));
+                return ['success' => false, 'error' => $position->message ?? 'Bridge error'];
             }
 
             Log::info("GpsService: Position acquired: {$position->latitude}, {$position->longitude}");
@@ -78,12 +82,15 @@ class GpsService
 
             if ($response->successful()) {
                 Log::info("GpsService: Location successfully pushed to remote.");
+                return ['success' => true, 'remote_status' => $response->status(), 'remote_body' => $response->json()];
             } else {
                 Log::warning("GpsService: Remote push failed with status: " . $response->status());
+                return ['success' => false, 'remote_status' => $response->status(), 'remote_body' => $response->json()];
             }
 
         } catch (\Exception $e) {
             Log::error("GpsService Error: " . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 }

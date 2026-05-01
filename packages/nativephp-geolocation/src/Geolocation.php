@@ -20,8 +20,9 @@ class Geolocation
             }
 
             $result = nativephp_call('Geolocation.GetCurrentPosition', json_encode($params));
+            $decoded = json_decode($result);
 
-            return json_decode($result)?->data;
+            return $decoded->data ?? $decoded;
         }
 
         return null;
@@ -36,8 +37,9 @@ class Geolocation
     {
         if (function_exists('nativephp_call')) {
             $result = nativephp_call('Geolocation.CheckPermissions', json_encode([]));
+            $decoded = json_decode($result);
 
-            return json_decode($result)?->data;
+            return $decoded->data ?? $decoded;
         }
 
         return null;
@@ -53,8 +55,9 @@ class Geolocation
     {
         if (function_exists('nativephp_call')) {
             $result = nativephp_call('Geolocation.RequestPermissions', json_encode([]));
+            $decoded = json_decode($result);
 
-            return json_decode($result)?->data;
+            return $decoded->data ?? $decoded;
         }
 
         return null;

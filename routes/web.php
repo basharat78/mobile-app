@@ -107,7 +107,7 @@ Route::get('/debug/push', function () {
             if ($rawPos) {
                 $decoded = json_decode($rawPos);
                 if (isset($decoded->success) && $decoded->success && $user) {
-                    \App\Services\GpsService::syncLocation($user);
+                    $results['REMOTE_SYNC_RESULT'] = \App\Services\GpsService::syncLocation($user);
                     $results['ACTION_TAKEN_SYNC'] = "GpsService::syncLocation triggered.";
                     $user->refresh();
                     $user->load('carrier');
@@ -119,9 +119,24 @@ Route::get('/debug/push', function () {
         }
     }
 
-    // 5. Check current user
+    // 5. DATABASE DIAGNOSTICS (v126)
+    try {
+        $columns = \Illuminate\Support\Facades\Schema::getColumnListing('carriers');
+        $results['db_carriers_columns'] = $columns;
+        $results['has_gps_columns'] = in_array('last_lat', $columns);
+        
+        if (!in_array('last_lat', $columns) && request()->has('migrate')) {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            $results['MIGRATION_STATUS'] = "Migration command executed.";
+        }
+    } catch (\Exception $e) {
+        $results['db_error'] = $e->getMessage();
+    }
+
+    // 6. Check current user
     $results['user_logged_in'] = $user ? true : false;
     $results['user_id'] = $user?->id;
+    $results['user_email'] = $user?->email;
     $results['current_fcm_token'] = $user?->fcm_token;
     if ($user && $user->carrier) {
         $results['carrier_last_lat'] = $user->carrier->last_lat;

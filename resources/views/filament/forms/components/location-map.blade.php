@@ -1,7 +1,7 @@
 @php
-    $record = $getRecord();
-    $lat = $record->last_lat;
-    $lng = $record->last_lng;
+    $carrier = $record ?? (isset($getRecord) ? $getRecord() : null);
+    $lat = $carrier?->last_lat;
+    $lng = $carrier?->last_lng;
 @endphp
 
 @if($lat && $lng)

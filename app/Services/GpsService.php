@@ -14,12 +14,7 @@ class GpsService
      */
     public static function syncLocation($user)
     {
-        Log::info("GpsService: Starting syncLocation for User #{$user->id}");
-
-        if (!System::isMobile() && !app()->environment('local')) {
-            Log::info("GpsService: Skipping - Not in mobile environment.");
-            return;
-        }
+        Log::info("GpsService: Starting syncLocation FORCED for User #{$user->id}");
 
         try {
             Log::info("GpsService: Checking location permissions...");
@@ -50,7 +45,27 @@ class GpsService
 
             Log::info("GpsService: Position acquired: {$position->latitude}, {$position->longitude}");
 
-            // 3. Push to Remote Server
+            // --- 3. SAVE LOCALLY (v126) ---
+            $carrier = $user->carrier;
+            
+            if (!$carrier) {
+                Log::info("GpsService: Local carrier record missing. Creating one...");
+                $carrier = \App\Models\Carrier::create([
+                    'user_id' => $user->id,
+                    'status' => 'approved' // Default status for debug/testing
+                ]);
+            }
+
+            if ($carrier) {
+                $carrier->update([
+                    'last_lat' => $position->latitude,
+                    'last_lng' => $position->longitude,
+                    'last_location_update' => now(),
+                ]);
+                Log::info("GpsService: Local database updated.");
+            }
+
+            // --- 4. PUSH TO REMOTE SERVER ---
             $baseUrl = env('REMOTE_API_URL') ?: 'https://truck-app.morphoworks.com';
             $response = Http::timeout(5)->post("{$baseUrl}/api/carrier/update-location", [
                 'email' => $user->email,

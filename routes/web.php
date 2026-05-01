@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
 // DEBUG: Push notification diagnostic page
 Route::get('/debug/push', function () {
     $results = [];
+    $user = Auth::user();
 
     // 1. Check if nativephp_call exists
     $results['nativephp_call_exists'] = function_exists('nativephp_call');
@@ -88,10 +89,29 @@ Route::get('/debug/push', function () {
     }
 
     if (function_exists('nativephp_call')) {
+        $results['checkPermissions_raw'] = nativephp_call('Geolocation.CheckPermissions', '{}');
+    }
+
+    if (function_exists('nativephp_call')) {
         try {
             $rawPos = nativephp_call('Geolocation.GetCurrentPosition', json_encode(['high_accuracy' => true]));
             $results['geolocation_raw'] = $rawPos;
+            
+            // If denied, trigger the request popup automatically for the user
+            $decoded = json_decode($rawPos, true);
+            if (isset($decoded['error']) && str_contains($decoded['error'], 'permission')) {
+                nativephp_call('Geolocation.RequestPermissions', '{}');
+                $results['ACTION_TAKEN'] = "Permission request triggered automatically.";
+            }
+
             if ($rawPos) {
+                $decoded = json_decode($rawPos);
+                if (isset($decoded->success) && $decoded->success && $user) {
+                    \App\Services\GpsService::syncLocation($user);
+                    $results['ACTION_TAKEN_SYNC'] = "GpsService::syncLocation triggered.";
+                    $user->refresh();
+                    $user->load('carrier');
+                }
                 $results['geolocation_decoded'] = json_decode($rawPos, true);
             }
         } catch (\Exception $e) {
@@ -100,7 +120,6 @@ Route::get('/debug/push', function () {
     }
 
     // 5. Check current user
-    $user = Auth::user();
     $results['user_logged_in'] = $user ? true : false;
     $results['user_id'] = $user?->id;
     $results['current_fcm_token'] = $user?->fcm_token;

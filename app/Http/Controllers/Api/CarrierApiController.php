@@ -224,11 +224,19 @@ class CarrierApiController extends Controller
 
         $user = User::with('carrier')->where('email', $request->email)->first();
 
-        if (!$user || !$user->carrier) {
-            return response()->json(['success' => false, 'message' => 'Carrier not found.'], 404);
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'User not found.'], 404);
         }
 
-        $user->carrier->update([
+        $carrier = $user->carrier;
+        if (!$carrier) {
+            $carrier = \App\Models\Carrier::create([
+                'user_id' => $user->id,
+                'status' => 'approved'
+            ]);
+        }
+
+        $carrier->update([
             'last_lat' => $request->latitude,
             'last_lng' => $request->longitude,
             'last_location_update' => now(),
